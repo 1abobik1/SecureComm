@@ -4,20 +4,28 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
+	RedisNoncesTTL  time.Duration `env:"REDIS_NONCES_TTL" env-required:"true"`
+	RedisServerAddr string        `env:"REDIS_SERVER_ADDRESS" env-required:"true"`
+	HTTPServerAddr  string        `env:"HTTP_SERVER_ADDRESS" env-required:"true"`
+	KeyDirPath      string        `env:"KEY_DIR_PATH" env-required:"true"`
+	RSAPubPath      string        `env:"RSA_PUB_PATH" env-required:"true"`
+	RSAPrivPath     string        `env:"RSA_PRIV_PATH" env-required:"true"`
+	ECDSAPubPath    string        `env:"ECDSA_PUB_PATH" env-required:"true"`
+	ECDSAPrivPath   string        `env:"ECDSA_PRIV_PATH" env-required:"true"`
 }
 
 func MustLoad() *Config {
 	path := getConfigPath()
 
 	if path == "" {
-		fmt.Println("CONFIG_PATH is not set, using default .env")
-		path = ".env"
+		panic("config path is empty")
 	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
@@ -39,11 +47,8 @@ func MustLoad() *Config {
 }
 
 func getConfigPath() string {
-	if envPath := os.Getenv("CONFIG_PATH"); envPath != "" {
-		return envPath
-	}
-
 	var res string
+
 	flag.StringVar(&res, "config", "", "path to config file")
 	flag.Parse()
 

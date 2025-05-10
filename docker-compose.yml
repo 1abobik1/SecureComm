@@ -1,0 +1,30 @@
+services:
+  redis:
+    container_name: redis
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+
+  http_api:
+    build:
+      context: ./server/
+      dockerfile: Dockerfile
+    container_name: securecomm_http_api
+    depends_on:
+      - redis
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./server/.env
+    volumes:
+      - ./server/internal/keys:/root/keys:rw
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+
+networks:
+  app-network:
+    driver: bridge
