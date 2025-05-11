@@ -21,6 +21,8 @@ services:
     volumes:
       - ./server/internal/keys:/root/keys:rw
     restart: unless-stopped
+    networks:
+      - app-network
 
 volumes:
   redis_data:

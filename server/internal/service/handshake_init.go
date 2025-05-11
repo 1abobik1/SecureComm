@@ -52,7 +52,7 @@ func NewService(nonces NonceStore, servKeysStore ServerKeyStore, clientPubKeySto
 	}
 }
 
-func (s *service) Init(clientID string, clientRSAPubDER, clientECDSAPubDER []byte, nonce1 []byte, sig1 []byte) (serverRSA, serverECDSA, nonce2, signature2 []byte, err error) {
+func (s *service) Init(clientID string, clientRSAPubDER, clientECDSAPubDER, nonce1, sig1 []byte) (serverRSA, serverECDSA, nonce2, signature2 []byte, err error) {
 	const op = "location internal.service.handshake_init.Init"
 
 	// 1) Replay-защита

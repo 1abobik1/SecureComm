@@ -48,7 +48,7 @@ func main() {
 		cfg.RedisServerAddr,
 	)
 
-	// 3.3. Redis для хранения nonces (TTL = 5 мин)
+	// 3.3. Redis для хранения nonces (TTL = 10 мин)
 	nonceStore := client_noncestore.NewRedisNonceStore(
 		cfg.RedisServerAddr,
 		cfg.RedisNoncesTTL,
