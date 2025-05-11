@@ -138,7 +138,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("Handshake response:\n%+v\n", hr.ECDSAPubServer)
+	fmt.Printf("Handshake response:\n%+v\n", hr)
 }
 
 type der struct {
