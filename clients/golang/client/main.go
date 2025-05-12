@@ -97,12 +97,12 @@ func main() {
 		panic(err)
 	}
 
-	// 1) nonce1
 	nonce1 := make([]byte, 8)
 	if _, err := rand.Read(nonce1); err != nil {
 		panic(err)
 	}
-
+	//nonce1 := []byte("6Q62iguYP+A=")
+	
 	// 2) hash1 = SHA256(rsaPub||ecdsaPub||nonce1)
 	data1 := append(append(rsaPubDER, ecdsaPubDER...), nonce1...)
 	h1 := sha256.Sum256(data1)

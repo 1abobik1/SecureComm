@@ -12,29 +12,32 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/sirupsen/logrus"
+
+	tb "github.com/didip/tollbooth/v7"
+	"github.com/didip/tollbooth/v7/limiter"
+	toll_gin "github.com/didip/tollbooth_gin"
 )
 
 func init() {
-	binding.EnableDecoderDisallowUnknownFields = true // отвергает лишние поля у DTO при запросе
+	binding.EnableDecoderDisallowUnknownFields = true // отвергает лишние поля у запроса
 }
 
 func main() {
-	// 1) Загрузка конфига
+	// загрузка конфига
 	cfg := config.MustLoad()
 
-	// Пути к PEM-файлам
-	rsaPrivPath := cfg.RSAPrivPath
-	rsaPubPath := cfg.RSAPubPath
-	ecdsaPrivPath := cfg.ECDSAPrivPath
-	ecdsaPubPath := cfg.ECDSAPubPath
+	// пути к ключам сервера
+	rsaPrivPath := cfg.ServKeys.RSAPrivPath
+	rsaPubPath := cfg.ServKeys.RSAPubPath
+	ecdsaPrivPath := cfg.ServKeys.ECDSAPrivPath
+	ecdsaPubPath := cfg.ServKeys.ECDSAPubPath
 
-	// 2) проверка наличия файлов ключей
+	// проверка наличия файлов ключей
 	if err := checker.CheckKeys(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath); err != nil {
 		panic(err)
 	}
 
-	// 3) Репозитории
-	// 3.1. Серверные ключи из файлов
+	// серверные ключи из файлов
 	serverKeys, err := server_keystore.NewFileKeyStore(
 		rsaPrivPath, rsaPubPath,
 		ecdsaPrivPath, ecdsaPubPath,
@@ -43,34 +46,38 @@ func main() {
 		panic(err)
 	}
 
-	// 3.2. Redis для клиентских публичных ключей
+	// Redis для клиентских публичных ключей
 	clientKeys := client_keystore.NewRedisClientPubKeyStore(
-		cfg.RedisServerAddr,
+		cfg.Redis.RedisServerAddr,
 	)
 
-	// 3.3. Redis для хранения nonces (TTL = 10 мин)
+	// Redis для хранения nonces (TTL = 10 мин)
 	nonceStore := client_noncestore.NewRedisNonceStore(
-		cfg.RedisServerAddr,
-		cfg.RedisNoncesTTL,
+		cfg.Redis.RedisServerAddr,
+		cfg.Redis.RedisNoncesTTL,
 	)
 
-	// 4) Сервисный слой
+	// сервисный слой
 	hsService := service.NewService(nonceStore, serverKeys, clientKeys)
 
-	// 5) HTTP-Handler
+	// HTTP-Handler
 	hsHandler := handler.NewHandler(hsService)
 
-	// 6) Маршрутизация
+	// limiter для /handshake
+	hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
+	hsLimiter.SetBurst(cfg.HSLimiter.Burst)
+
+	// маршрутизация
 	r := gin.Default()
 	hs := r.Group("/handshake")
 	{
-		hs.POST("/init", hsHandler.Init)
-		hs.POST("/finalize", hsHandler.Finalize)
+		hs.POST("/init", toll_gin.LimitHandler(hsLimiter), hsHandler.Init)
+		hs.POST("/finalize", toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
 	}
 
-	// 7) Запуск
-	logrus.Infof("Starting server on %s", cfg.HTTPServerAddr)
-	if err := r.Run(cfg.HTTPServerAddr); err != nil {
+	// запуск серва
+	logrus.Infof("Starting server on %s", cfg.HTTPServ.ServerAddr)
+	if err := r.Run(cfg.HTTPServ.ServerAddr); err != nil {
 		panic(err)
 	}
 }
