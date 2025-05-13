@@ -32,11 +32,11 @@ func main() {
 	}
 
 	startInit := time.Now()
-	// Step 1: Init
+	// Init
 	initResp := client.DoInitAPI(*initURL, rsaPubDER, ecdsaPubDER, ecdsaPriv)
 	fmt.Printf("Init resp: %+v\n", initResp)
 	fmt.Println("\nInit handshake time:", time.Since(startInit))
 
-	// Step 2: Finalize
+	// Finalize
 	// client.DoFinalizeAPI(*finURL, initResp, ecdsaPriv)
 }

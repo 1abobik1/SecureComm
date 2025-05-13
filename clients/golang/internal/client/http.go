@@ -29,7 +29,7 @@ func PostJSON(url string, payload interface{}, headers map[string]string) (*http
 }
 
 func DoInitAPI(url string, rsaPubDER, ecdsaPubDER []byte, ecdsaPriv interface{}) *dto.HandshakeResp {
-	// Step 1: generate nonce and signature
+	// generate nonce and signature
 	nonceB64, nonce, err := GenerateNonce(8)
 	if err != nil {
 		panic(err)

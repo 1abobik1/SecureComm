@@ -9,7 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// RedisNonceStore реализует NonceStore через Redis
+// реализует NonceStore через Redis
 type redisNonceStore struct {
 	cli     *redis.Client
 	ctx     context.Context
@@ -17,7 +17,6 @@ type redisNonceStore struct {
 	keyPref string
 }
 
-// NewRedisNonceStore создаёт хранилище nonces
 // addr — адрес redis, ttl — время хранения nonce
 func NewRedisNonceStore(addr string, ttl time.Duration) *redisNonceStore {
 	return &redisNonceStore{
@@ -28,7 +27,7 @@ func NewRedisNonceStore(addr string, ttl time.Duration) *redisNonceStore {
 	}
 }
 
-// Has проверяет, встречался ли такой nonce раньше
+// проверяет, встречался ли такой nonce раньше
 func (r *redisNonceStore) Has(nonce []byte) bool {
 	const op = "location internal.repository.client_noncestore.Has"
 
@@ -41,7 +40,7 @@ func (r *redisNonceStore) Has(nonce []byte) bool {
 	return exists > 0
 }
 
-// Add сохраняет nonce с TTL, чтобы потом отбрасывать повторы
+// сохраняет nonce с TTL, чтобы потом отбрасывать повторы
 func (r *redisNonceStore) Add(nonce []byte) {
 	key := r.keyPref + hex.EncodeToString(nonce)
 	// SET NX с TTL

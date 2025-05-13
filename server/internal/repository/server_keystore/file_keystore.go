@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-// FileKeyStore просто читает и парсит ключи, не генерирует их.
+// просто читает и парсит ключи, не генерирует их.
 type FileKeyStore struct {
 	rsaPriv     *rsa.PrivateKey
 	rsaPubPEM   []byte
@@ -17,8 +17,8 @@ type FileKeyStore struct {
 	ecdsaPubPEM []byte
 }
 
-// NewFileKeyStore читает ключи из указанных файлов.
-// Если хотя бы один файл отсутствует или не парсится — возвращает ошибку.
+
+// если хотя бы один файл отсутствует или не парсится — возвращает ошибку.
 func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string) (*FileKeyStore, error) {
 	// Проверка и чтение RSA-приватного
 	privPEM, err := os.ReadFile(rsaPrivPath)
@@ -47,13 +47,13 @@ func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string
 		}
 	}
 
-	// Проверка и чтение RSA-публичного
+	// проверка и чтение RSA-публичного
 	rsaPubPEM, err := os.ReadFile(rsaPubPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read RSA public key %s: %w", rsaPubPath, err)
 	}
 
-	// Проверка и чтение ECDSA-приватного
+	// проверка и чтение ECDSA-приватного
 	ecdsaPrivPEM, err := os.ReadFile(ecdsaPrivPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read ECDSA private key %s: %w", ecdsaPrivPath, err)
@@ -64,11 +64,11 @@ func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string
 	}
 
 	var ecdsaPriv *ecdsa.PrivateKey
-	// Попытка парсинга SEC1
+	// попытка парсинга SEC1
 	if key, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
 		ecdsaPriv = key
 	} else {
-		// Или PKCS#8
+		// или PKCS#8
 		keyIfc, err2 := x509.ParsePKCS8PrivateKey(block.Bytes)
 		if err2 != nil {
 			return nil, fmt.Errorf("invalid ECDSA private key format: %v / %v", err, err2)
@@ -80,7 +80,7 @@ func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string
 		}
 	}
 
-	// Проверка и чтение ECDSA-публичного
+	// проверка и чтение ECDSA-публичного
 	ecdsaPubPEM, err := os.ReadFile(ecdsaPubPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read ECDSA public key %s: %w", ecdsaPubPath, err)
@@ -94,7 +94,7 @@ func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string
 	}, nil
 }
 
-// GetServerKeys возвращает уже считанные ключи
+// возвращает уже считанные ключи
 func (ks *FileKeyStore) GetServerKeys() (rsaPriv *rsa.PrivateKey, rsaPub []byte, ecdsaPriv *ecdsa.PrivateKey, ecdsaPub []byte) {
 	return ks.rsaPriv, ks.rsaPubPEM, ks.ecdsaPriv, ks.ecdsaPubPEM
 }

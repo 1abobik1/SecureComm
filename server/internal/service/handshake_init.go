@@ -18,20 +18,20 @@ var (
 	ErrReplayDetected = errors.New("replay detected")
 )
 
-// NonceStore — хранит использованные nonces, чтобы отсеять replay
+// хранит использованные nonces, чтобы отсеять replay
 type NonceStore interface {
 	Has(nonce []byte) bool
 	Add(nonce []byte)
 }
 
-// KeyStore — даёт доступ к парам ключей сервера
+// даёт доступ к парам ключей сервера
 type ServerKeyStore interface {
 	GetServerKeys() (*rsa.PrivateKey, []byte, *ecdsa.PrivateKey, []byte)
 }
 
-// ClientPubKeyStore - хранит и отдает публичные ключи пользователей в REDIS
+// хранит и отдает публичные ключи пользователей в REDIS
 type ClientPubKeyStore interface {
-	// SaveClientKeys сохраняет публичные ключи клиента по clientID
+	// сохраняет публичные ключи клиента по clientID
 	SaveClientKeys(clientID string, rsaPubDER, ecdsaPubDER []byte) error
 	
 	GetClientRSAPub(clientID string) ([]byte, error)
@@ -55,16 +55,16 @@ func NewService(nonces NonceStore, servKeysStore ServerKeyStore, clientPubKeySto
 func (s *service) Init(clientID string, clientRSAPubDER, clientECDSAPubDER, nonce1, sig1 []byte) (serverRSA, serverECDSA, nonce2, signature2 []byte, err error) {
 	const op = "location internal.service.handshake_init.Init"
 
-	// 1) Replay-защита
+	// replay-защита
 	if s.nonces.Has(nonce1) {
 		return nil, nil, nil, nil, ErrReplayDetected
 	}
 	s.nonces.Add(nonce1)
 
-	// 2) Получаем серверные ключи
+	// получаем серверные ключи
 	_, rsaPubS, ecdsaPrivS, ecdsaPubS := s.servKeysStore.GetServerKeys()
 
-	// 3) Импортируем публичный ECDSA-ключ клиента из DER
+	// импортируем публичный ECDSA-ключ клиента из DER
 	pubIfc, err := x509.ParsePKIXPublicKey(clientECDSAPubDER)
 	if err != nil {
 		logrus.Errorf("%s: %v", op, err)
@@ -75,8 +75,8 @@ func (s *service) Init(clientID string, clientRSAPubDER, clientECDSAPubDER, nonc
 		return nil, nil, nil, nil, errors.New("not an ECDSA public key")
 	}
 
-	// 4) Проверяем подпись клиента
-	//    h1 = SHA256(clientRSAPubDER ∥ clientECDSAPubDER ∥ nonce1)
+	// проверка подписи клиента
+	// h1 = SHA256(clientRSAPubDER ∥ clientECDSAPubDER ∥ nonce1)
 	h1 := sha256.Sum256(append(append(clientRSAPubDER, clientECDSAPubDER...), nonce1...))
 
 	// разбираем sig1 DER → {R,S}
@@ -91,20 +91,20 @@ func (s *service) Init(clientID string, clientRSAPubDER, clientECDSAPubDER, nonc
 		return nil, nil, nil, nil, errors.New("signature verification failed")
 	}
 
-	// 5) Сохраняем публичные ключи клиента
+	// сохраняем публичные ключи клиента
 	if err := s.clientPubKeyStore.SaveClientKeys(clientID, clientRSAPubDER, clientECDSAPubDER); err != nil {
 		logrus.Errorf("%s: %v", op, err)
 		return nil, nil, nil, nil, errors.New("error to save client keys in redis")
 	}
 
-	// 6) Генерируем nonce2
+	// генерируем nonce2
 	nonce2 = make([]byte, 8)
 	if _, err = rand.Read(nonce2); err != nil {
 		logrus.Errorf("%s: %v", op, err)
 		return nil, nil, nil, nil, errors.New("cannot generate nonce2")
 	}
 
-	// 7) Подписываем ответ: data2 = rsaPubS ∥ ecdsaPubS ∥ nonce2 ∥ nonce1
+	// подписываем ответ: data2 = rsaPubS ∥ ecdsaPubS ∥ nonce2 ∥ nonce1
 	data2 := append(append(append(rsaPubS, ecdsaPubS...), nonce2...), nonce1...)
 	h2 := sha256.Sum256(data2)
 	r2, s2, err := ecdsa.Sign(rand.Reader, ecdsaPrivS, h2[:])
@@ -118,7 +118,7 @@ func (s *service) Init(clientID string, clientRSAPubDER, clientECDSAPubDER, nonc
 		return nil, nil, nil, nil, errors.New("failed to marshal signature")
 	}
 
-	// 8) Возвращаем ответные данные
+	// возвращаем ответные данные
 	return rsaPubS, ecdsaPubS, nonce2, signature2, nil
 }
 
