@@ -9,6 +9,7 @@ HTTP_SERVER_ADDRESS=0.0.0.0:8080
 # redis
 REDIS_SERVER_ADDRESS=redis:6379
 REDIS_NONCES_TTL=10m
+REDIS_SESSION_KEY_TTL=50m
 
 # пути до серверных ключей внутри докера
 KEY_DIR_PATH=/root/keys
