@@ -27,8 +27,8 @@ func NewRedisClientPubKeyStore(addr string) *redisClientPubKeyStore {
 }
 
 // сохраняет в Redis пару ключей клиента под префиксом client:{clientID}
-func (r *redisClientPubKeyStore) SaveClientKeys(clientID string, rsaPubDER, ecdsaPubDER []byte) error {
-	
+func (r *redisClientPubKeyStore) SaveClientKeys(ctx context.Context, clientID string, rsaPubDER, ecdsaPubDER []byte) error {
+
 	keyRSA := fmt.Sprintf("client:%s:rsa_pub", clientID)
 	keyECDSA := fmt.Sprintf("client:%s:ecdsa_pub", clientID)
 
@@ -45,7 +45,7 @@ func (r *redisClientPubKeyStore) SaveClientKeys(clientID string, rsaPubDER, ecds
 }
 
 // возвращает raw DER-байты RSA-публичного ключа клиента
-func (r *redisClientPubKeyStore) GetClientRSAPub(clientID string) ([]byte, error) {
+func (r *redisClientPubKeyStore) GetClientRSAPub(ctx context.Context, clientID string) ([]byte, error) {
 	key := fmt.Sprintf("client:%s:rsa_pub", clientID)
 	b64, err := r.redis.Get(r.ctx, key).Result()
 	if err != nil {
@@ -55,7 +55,7 @@ func (r *redisClientPubKeyStore) GetClientRSAPub(clientID string) ([]byte, error
 }
 
 // возвращает объект *ecdsa.PublicKey клиента
-func (r *redisClientPubKeyStore) GetClientECDSAPub(clientID string) (*ecdsa.PublicKey, error) {
+func (r *redisClientPubKeyStore) GetClientECDSAPub(ctx context.Context, clientID string) (*ecdsa.PublicKey, error) {
 	key := fmt.Sprintf("client:%s:ecdsa_pub", clientID)
 	b64, err := r.redis.Get(r.ctx, key).Result()
 	if err != nil {

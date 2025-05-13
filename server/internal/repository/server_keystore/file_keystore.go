@@ -17,7 +17,6 @@ type FileKeyStore struct {
 	ecdsaPubPEM []byte
 }
 
-
 // если хотя бы один файл отсутствует или не парсится — возвращает ошибку.
 func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string) (*FileKeyStore, error) {
 	// Проверка и чтение RSA-приватного
@@ -26,7 +25,7 @@ func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string
 		return nil, fmt.Errorf("cannot read RSA private key %s: %w", rsaPrivPath, err)
 	}
 	block, _ := pem.Decode(privPEM)
-	if block == nil{
+	if block == nil {
 		return nil, fmt.Errorf("bad PEM block for RSA private key")
 	}
 
@@ -86,11 +85,18 @@ func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string
 		return nil, fmt.Errorf("cannot read ECDSA public key %s: %w", ecdsaPubPath, err)
 	}
 
+	rsaBlock, _ := pem.Decode(rsaPubPEM)
+	rsaPubDER := rsaBlock.Bytes
+
+	ecdsaBlock, _ := pem.Decode(ecdsaPubPEM)
+	ecdsaPubDER := ecdsaBlock.Bytes
+
+	// возвращается файлы в формате DER
 	return &FileKeyStore{
 		rsaPriv:     rsaPriv,
-		rsaPubPEM:   rsaPubPEM,
+		rsaPubPEM:   rsaPubDER,
 		ecdsaPriv:   ecdsaPriv,
-		ecdsaPubPEM: ecdsaPubPEM,
+		ecdsaPubPEM: ecdsaPubDER,
 	}, nil
 }
 

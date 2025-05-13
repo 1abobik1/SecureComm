@@ -28,7 +28,7 @@ func NewRedisNonceStore(addr string, ttl time.Duration) *redisNonceStore {
 }
 
 // проверяет, встречался ли такой nonce раньше
-func (r *redisNonceStore) Has(nonce []byte) bool {
+func (r *redisNonceStore) Has(ctx context.Context, nonce []byte) bool {
 	const op = "location internal.repository.client_noncestore.Has"
 
 	key := r.keyPref + hex.EncodeToString(nonce)
@@ -41,7 +41,7 @@ func (r *redisNonceStore) Has(nonce []byte) bool {
 }
 
 // сохраняет nonce с TTL, чтобы потом отбрасывать повторы
-func (r *redisNonceStore) Add(nonce []byte) {
+func (r *redisNonceStore) Add(ctx context.Context, nonce []byte) {
 	key := r.keyPref + hex.EncodeToString(nonce)
 	// SET NX с TTL
 	r.cli.SetNX(r.ctx, key, "1", r.ttl)

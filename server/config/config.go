@@ -11,8 +11,9 @@ import (
 )
 
 type RedisConfig struct {
-	RedisNoncesTTL  time.Duration `env:"REDIS_NONCES_TTL" env-required:"true"`
-	RedisServerAddr string        `env:"REDIS_SERVER_ADDRESS" env-required:"true"`
+	NoncesTTL     time.Duration `env:"REDIS_NONCES_TTL" env-required:"true"`
+	SessionKeyTTL time.Duration `env:"REDIS_SESSION_KEY_TTL" env-required:"true"`
+	ServerAddr    string        `env:"REDIS_SERVER_ADDRESS" env-required:"true"`
 }
 
 type ServKeysConfig struct {

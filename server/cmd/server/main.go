@@ -4,9 +4,11 @@ import (
 	"github.com/1abobik1/SecureComm/config"
 	"github.com/1abobik1/SecureComm/internal/checker"
 	"github.com/1abobik1/SecureComm/internal/handler"
+	"github.com/1abobik1/SecureComm/internal/middleware"
 	"github.com/1abobik1/SecureComm/internal/repository/client_keystore"
 	"github.com/1abobik1/SecureComm/internal/repository/client_noncestore"
 	"github.com/1abobik1/SecureComm/internal/repository/server_keystore"
+	"github.com/1abobik1/SecureComm/internal/repository/session_store"
 
 	"github.com/1abobik1/SecureComm/internal/service"
 	"github.com/gin-gonic/gin"
@@ -46,33 +48,44 @@ func main() {
 		panic(err)
 	}
 
-	// Redis для клиентских публичных ключей
+	// redis для клиентских публичных ключей
 	clientKeys := client_keystore.NewRedisClientPubKeyStore(
-		cfg.Redis.RedisServerAddr,
+		cfg.Redis.ServerAddr,
 	)
 
-	// Redis для хранения nonces (TTL = 10 мин)
+	// redis для хранения nonces
 	nonceStore := client_noncestore.NewRedisNonceStore(
-		cfg.Redis.RedisServerAddr,
-		cfg.Redis.RedisNoncesTTL,
+		cfg.Redis.ServerAddr,
+		cfg.Redis.NoncesTTL,
+	)
+
+	// redis для хранения сессионных строк
+	sessionStore := session_store.NewRedisSessionStore(
+		cfg.Redis.ServerAddr,
+		cfg.Redis.SessionKeyTTL,
 	)
 
 	// сервисный слой
-	hsService := service.NewService(nonceStore, serverKeys, clientKeys)
+	hsService := service.NewService(nonceStore, serverKeys, clientKeys, sessionStore)
 
-	// HTTP-Handler
+	// хендлерный слой
 	hsHandler := handler.NewHandler(hsService)
 
 	// limiter для /handshake
 	hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
 	hsLimiter.SetBurst(cfg.HSLimiter.Burst)
+	// limiter сначала пробует сделать лимит по client_id, если его нет в header, то по ip
+	hsLimiter.SetIPLookups([]string{
+		"Header:X-Client-ID",
+		"RemoteAddr",
+	})
 
 	// маршрутизация
 	r := gin.Default()
 	hs := r.Group("/handshake")
 	{
 		hs.POST("/init", toll_gin.LimitHandler(hsLimiter), hsHandler.Init)
-		hs.POST("/finalize", toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
+		hs.POST("/finalize", middleware.RequireClientID(), toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
 	}
 
 	// запуск серва
