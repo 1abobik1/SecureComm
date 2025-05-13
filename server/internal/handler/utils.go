@@ -26,7 +26,7 @@ func decode(s string) ([]byte, error) {
 func decodeOrAbort(c *gin.Context, s string) []byte {
     b, err := decode(s)  
     if err != nil {
-        c.Status(http.StatusInternalServerError)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid base64 payload"})
         c.Abort()
         return nil
     }

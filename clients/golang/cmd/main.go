@@ -14,7 +14,7 @@ func main() {
 	ecdsaPubPath := flag.String("ecdsa-pub", "keys/client_ecdsa.pub", "")
 	ecdsaPrivPath := flag.String("ecdsa-priv", "keys/client_ecdsa.pem", "")
 	initURL := flag.String("init-url", "http://localhost:8080/handshake/init", "")
-	// finURL := flag.String("fin-url", "http://localhost:8080/handshake/finalize", "")
+	finURL := flag.String("fin-url", "http://localhost:8080/handshake/finalize", "")
 	flag.Parse()
 
 	// Load files
@@ -31,12 +31,16 @@ func main() {
 		panic(err)
 	}
 
-	startInit := time.Now()
 	// Init
+	startInit := time.Now()
 	initResp := client.DoInitAPI(*initURL, rsaPubDER, ecdsaPubDER, ecdsaPriv)
 	fmt.Printf("Init resp: %+v\n", initResp)
 	fmt.Println("\nInit handshake time:", time.Since(startInit))
 
 	// Finalize
-	// client.DoFinalizeAPI(*finURL, initResp, ecdsaPriv)
+	startFin := time.Now()
+	finResp := client.DoFinalizeAPI(*finURL, initResp, ecdsaPriv)
+	fmt.Printf("Finalize resp: %+v\n", finResp)
+	fmt.Println("\nInit handshake time:", time.Since(startFin))
+
 }

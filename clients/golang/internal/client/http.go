@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
-	"example_client/internal/dto"
 	"fmt"
+	"io"
 	"net/http"
+
+	"example_client/internal/dto"
 )
 
 func PostJSON(url string, payload interface{}, headers map[string]string) (*http.Response, error) {
@@ -28,61 +32,180 @@ func PostJSON(url string, payload interface{}, headers map[string]string) (*http
 	return http.DefaultClient.Do(req)
 }
 
-func DoInitAPI(url string, rsaPubDER, ecdsaPubDER []byte, ecdsaPriv interface{}) *dto.HandshakeResp {
-	// generate nonce and signature
-	nonceB64, nonce, err := GenerateNonce(8)
+func DoInitAPI(url string, rsaPubDER, ecdsaPubDER []byte, ecdsaPriv *ecdsa.PrivateKey) *dto.HandshakeResp {
+	// 1. Генерим nonce1 и подписываем его вместе с публичными ключами клиента
+	nonce1b64, nonce1, err := GenerateNonce(8)
 	if err != nil {
 		panic(err)
 	}
-	data := append(append(rsaPubDER, ecdsaPubDER...), nonce...)
-	sig, err := SignPayloadECDSA(ecdsaPriv.(*ecdsa.PrivateKey), data)
+	toSign1 := append(append(rsaPubDER, ecdsaPubDER...), nonce1...)
+	sig1b64, err := SignPayloadECDSA(ecdsaPriv, toSign1)
 	if err != nil {
 		panic(err)
 	}
-	req := dto.HandshakeReq{
+
+	// 2. Отправляем Init-запрос
+	reqBody := dto.HandshakeReq{
 		RSAPubClient:   base64.StdEncoding.EncodeToString(rsaPubDER),
 		ECDSAPubClient: base64.StdEncoding.EncodeToString(ecdsaPubDER),
-		Nonce1:         nonceB64,
-		Signature1:     sig,
+		Nonce1:         nonce1b64,
+		Signature1:     sig1b64,
 	}
-	resp, err := PostJSON(url, req, nil)
+	resp, err := PostJSON(url, reqBody, nil)
 	if err != nil {
 		panic(err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		panic(fmt.Errorf("handshake/init failed: status %d, body: %q", resp.StatusCode, string(b)))
+	}
+
 	var hr dto.HandshakeResp
 	if err := json.NewDecoder(resp.Body).Decode(&hr); err != nil {
-		panic(err)
+		panic(fmt.Errorf("handshake/init: invalid JSON: %w", err))
 	}
-	return &hr
-}
 
-func DoFinalizeAPI(url string, initResp *dto.HandshakeResp, ecdsaPriv interface{}) {
-	// decode server RSA pub
-	srvRSADer, _ := base64.StdEncoding.DecodeString(initResp.RSAPubServer)
-	pubIfc, _ := x509.ParsePKIXPublicKey(srvRSADer)
-	rsaPubSrv := pubIfc.(*rsa.PublicKey)
-	// decode nonce2
-	nonce2, _ := base64.StdEncoding.DecodeString(initResp.Nonce2)
-	// generate ks and nonce3
-	_, ks, _ := GenerateNonce(32)
-	_, nonce3, _ := GenerateNonce(8)
-	payload := append(append(ks, nonce3...), nonce2...)
-	sig3, err := SignPayloadECDSA(ecdsaPriv.(*ecdsa.PrivateKey), payload)
+	// 3. Декодируем nonce2 и sig2
+	nonce2, err := base64.StdEncoding.DecodeString(hr.Nonce2)
 	if err != nil {
 		panic(err)
 	}
-	toEncrypt := append(payload, []byte(sig3)...)
+	sig2DER, err := base64.StdEncoding.DecodeString(hr.Signature2)
+	if err != nil {
+		panic(err)
+	}
+	var sig2 DerSig
+	if _, err := asn1.Unmarshal(sig2DER, &sig2); err != nil {
+		panic("handshake/init: invalid server signature DER")
+	}
+
+	// 4. Декодируем публичные ключи сервера
+	rawECDSAPubDER, err := base64.StdEncoding.DecodeString(hr.ECDSAPubServer)
+	if err != nil {
+		panic(err)
+	}
+	piECDSA, err := x509.ParsePKIXPublicKey(rawECDSAPubDER)
+	if err != nil {
+		panic("handshake/init: cannot parse server ECDSA pub")
+	}
+	serverECDSAPub := piECDSA.(*ecdsa.PublicKey)
+
+	rawRSAPubDER, err := base64.StdEncoding.DecodeString(hr.RSAPubServer)
+	if err != nil {
+		panic(err)
+	}
+	piRSA, err := x509.ParsePKIXPublicKey(rawRSAPubDER)
+	if err != nil {
+		panic("handshake/init: cannot parse server RSA pub")
+	}
+	_ = piRSA.(*rsa.PublicKey)
+
+	// 5. Верифицируем sig2
+	data2 := append(append(append(rawRSAPubDER, rawECDSAPubDER...), nonce2...), nonce1...)
+	h2 := sha256.Sum256(data2)
+	if !ecdsa.Verify(serverECDSAPub, h2[:], sig2.R, sig2.S) {
+		panic("handshake/init: server signature verification failed")
+	}
+
+	return &hr
+}
+
+func DoFinalizeAPI(url string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.PrivateKey) dto.FinalizeResp {
+	// 1. Декодируем RSA публичный ключ сервера
+	rsaPubDER, err := base64.StdEncoding.DecodeString(initResp.RSAPubServer)
+	if err != nil {
+		panic(err)
+	}
+	piRSA, err := x509.ParsePKIXPublicKey(rsaPubDER)
+	if err != nil {
+		panic("finalize: cannot parse RSA server key")
+	}
+	rsaPubSrv := piRSA.(*rsa.PublicKey)
+
+	// 2. Декодируем nonce2
+	nonce2, err := base64.StdEncoding.DecodeString(initResp.Nonce2)
+	if err != nil {
+		panic(err)
+	}
+
+	// 3. Генерируем ks и nonce3
+	_, ks, err := GenerateNonce(32)
+	if err != nil {
+		panic(err)
+	}
+	_, nonce3, err := GenerateNonce(8)
+	if err != nil {
+		panic(err)
+	}
+
+	// 4. Подписываем payload = ks || nonce3 || nonce2
+	payload := append(append(ks, nonce3...), nonce2...)
+	sig3b64, err := SignPayloadECDSA(ecdsaPriv, payload)
+	if err != nil {
+		panic(err)
+	}
+	// декодируем base64 → raw DER
+	sig3DER, err := base64.StdEncoding.DecodeString(sig3b64)
+	if err != nil {
+		panic(err)
+	}
+
+	// 5. Шифруем payload || sig3DER
+	toEncrypt := append(payload, sig3DER...)
 	cipherB64, err := EncryptRSA(rsaPubSrv, toEncrypt)
 	if err != nil {
 		panic(err)
 	}
-	req := dto.FinalizeReq{Encrypted: cipherB64}
+
+	// 6. Отправляем Finalize-запрос
+	reqBody := dto.FinalizeReq{Encrypted: cipherB64}
 	headers := map[string]string{"X-Client-ID": initResp.ClientID}
-	finResp, err := PostJSON(url, req, headers)
+	resp, err := PostJSON(url, reqBody, headers)
 	if err != nil {
 		panic(err)
 	}
-	defer finResp.Body.Close()
-	fmt.Println("Finalize status:", finResp.StatusCode)
+	defer resp.Body.Close()
+
+	fmt.Println("Finalize status:", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		panic(fmt.Errorf("handshake/finalize failed: status %d, body: %q", resp.StatusCode, string(b)))
+	}
+
+	var fr dto.FinalizeResp
+	if err := json.NewDecoder(resp.Body).Decode(&fr); err != nil {
+		panic(fmt.Errorf("handshake/finalize: invalid JSON: %w", err))
+	}
+
+	// 7. Декодируем и проверяем подпись4
+	sig4DER, err := base64.StdEncoding.DecodeString(fr.Signature4)
+	if err != nil {
+		panic(err)
+	}
+	var sig4 DerSig
+	if _, err := asn1.Unmarshal(sig4DER, &sig4); err != nil {
+		panic("finalize: invalid server signature4 DER")
+	}
+
+	// 8. Парсим ECDSA публичный ключ сервера
+	rawECDSAPubDER, err := base64.StdEncoding.DecodeString(initResp.ECDSAPubServer)
+	if err != nil {
+		panic(err)
+	}
+	piECDSA, err := x509.ParsePKIXPublicKey(rawECDSAPubDER)
+	if err != nil {
+		panic("finalize: cannot parse ECDSA server key")
+	}
+	serverECDSAPub := piECDSA.(*ecdsa.PublicKey)
+
+	// 9. Проверяем подпись4: SHA256(ks||nonce3||nonce2)
+	h4 := sha256.Sum256(append(append(ks, nonce3...), nonce2...))
+	if !ecdsa.Verify(serverECDSAPub, h4[:], sig4.R, sig4.S) {
+		panic("finalize: bad server signature4")
+	}
+
+	fmt.Println("Finalize OK, server signature verified")
+	return fr
 }
