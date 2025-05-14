@@ -91,7 +91,7 @@ func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string
 	ecdsaBlock, _ := pem.Decode(ecdsaPubPEM)
 	ecdsaPubDER := ecdsaBlock.Bytes
 
-	// возвращается файлы в формате DER
+	// возвращаются файлы в формате DER
 	return &FileKeyStore{
 		rsaPriv:     rsaPriv,
 		rsaPubPEM:   rsaPubDER,

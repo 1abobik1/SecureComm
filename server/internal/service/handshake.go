@@ -74,14 +74,15 @@ func (s *service) Init(ctx context.Context, clientID string, clientRSAPubDER, cl
 		return nil, nil, nil, nil, errors.New("cannot generate nonce2")
 	}
 
-	// подписываем ответ: data2 = rsaPubS ∥ ecdsaPubS ∥ nonce2 ∥ nonce1
-	totalLenH2 := len(rsaPubS) + len(ecdsaPubS) + len(nonce2) + len(nonce1)
+	// подписываем ответ: dataH2 = rsaPubS ∥ ecdsaPubS ∥ nonce2 ∥ nonce1 ∥ clientID
+	totalLenH2 := len(rsaPubS) + len(ecdsaPubS) + len(nonce2) + len(nonce1) + len(clientID)
 	dataH2 := make([]byte, 0, totalLenH2)
 
 	dataH2 = append(dataH2, rsaPubS...)
 	dataH2 = append(dataH2, ecdsaPubS...)
 	dataH2 = append(dataH2, nonce2...)
 	dataH2 = append(dataH2, nonce1...)
+	dataH2 = append(dataH2, clientID...)
 
 	h2 := sha256.Sum256(dataH2)
 

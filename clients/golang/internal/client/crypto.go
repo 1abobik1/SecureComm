@@ -28,7 +28,7 @@ func SignPayloadECDSA(priv *ecdsa.PrivateKey, data []byte) (string, error) {
 	return base64.StdEncoding.EncodeToString(der), nil
 }
 
-func GenerateNonce(size int) (string, []byte, error) {
+func GenerateRandBytes(size int) (string, []byte, error) {
 	buf := make([]byte, size)
 	if _, err := rand.Read(buf); err != nil {
 		return "", nil, err

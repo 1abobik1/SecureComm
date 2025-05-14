@@ -18,12 +18,20 @@ import (
 	tb "github.com/didip/tollbooth/v7"
 	"github.com/didip/tollbooth/v7/limiter"
 	toll_gin "github.com/didip/tollbooth_gin"
+
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+	_ "github.com/1abobik1/SecureComm/docs"
 )
 
 func init() {
 	binding.EnableDecoderDisallowUnknownFields = true // отвергает лишние поля у запроса
 }
 
+// @title           SecureComm API
+// @version         1.0
+// @description     Документация о внутренней реализации и логики работы находится в папке docs
+// @host      localhost:8080
 func main() {
 	// загрузка конфига
 	cfg := config.MustLoad()
@@ -82,6 +90,9 @@ func main() {
 
 	// маршрутизация
 	r := gin.Default()
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler)) // свагер документация
+	
 	hs := r.Group("/handshake")
 	{
 		hs.POST("/init", toll_gin.LimitHandler(hsLimiter), hsHandler.Init)

@@ -26,7 +26,7 @@ func decode(s string) ([]byte, error) {
 func decodeOrAbort(c *gin.Context, s string) []byte {
     b, err := decode(s)  
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid base64 payload"})
+        c.JSON(http.StatusInternalServerError, dto.InternalServerErr{Error: "invalid base64 payload"})
         c.Abort()
         return nil
     }
@@ -53,5 +53,5 @@ func handleBindError(c *gin.Context, err error) {
 	}
 
 	logrus.WithError(err).Warn("invalid request data")
-	c.JSON(http.StatusBadRequest, dto.BadRequest{Error: "invalid request data"})
+	c.JSON(http.StatusBadRequest, dto.BadRequestErr{Error: "invalid request data"})
 }

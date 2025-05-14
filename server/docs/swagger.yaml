@@ -1,0 +1,201 @@
+definitions:
+  dto.BadRequestErr:
+    properties:
+      error:
+        description: 'example: invalid request data'
+        type: string
+    type: object
+  dto.ConflictErr:
+    properties:
+      error:
+        description: 'example: replay detected'
+        type: string
+    type: object
+  dto.HandshakeFinalizeReq:
+    description: Клиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.
+      Подробнее про поле encrypted... Рандомные 32 байта - это сессионная строка,
+      назовем её ks, которая лежит в payload payload - это сумма байтов (ks || nonce3
+      || nonce2) signature3 - это подписанный payload приватным ключем клиента В конце
+      encrypted это зашифрованные байты (payload || signature3(в DER формате)) encrypted
+      - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
+    properties:
+      encrypted:
+        description: Base64(RSA-OAEP(encrypted payload || signature3(DER)))
+        type: string
+    type: object
+  dto.HandshakeFinalizeResp:
+    description: Сервер возвращает подпись h4 = SHA256(Ks || nonce3 || nonce2), подписанную
+      приватным ECDSA‑ключом сервера и закодированную в Base64.
+    properties:
+      signature4:
+        description: Base64(DER‑подпись ответа сервера)
+        type: string
+    type: object
+  dto.HandshakeInitReq:
+    description: Клиент отправляет свои публичные ключи и nonce1, всё это подписано
+      приватным ECDSA‑ключом. Все бинарные данные (ключи, подписи, nonce) закодированы
+      в Base64 (DER для ключей и подписи).  rsa_pub_client - Base64(DER‑закодированный
+      RSA‑публичный ключ клиента) ecdsa_pub_client - Base64(DER‑закодированный ECDSA‑публичный
+      ключ клиента) nonce1 - Base64(8‑байтовый случайный nonce) signature1 - Base64(DER‑закодированная
+      подпись SHA256(clientRSA || clientECDSA || nonce1) приватным ECDSA‑ключом клиента)
+    properties:
+      ecdsa_pub_client:
+        type: string
+      nonce1:
+        type: string
+      rsa_pub_client:
+        type: string
+      signature1:
+        type: string
+    type: object
+  dto.HandshakeInitResp:
+    description: Сервер отвечает своими публичными ключами и nonce2, всё это подписано
+      приватным ECDSA‑ключом сервера. Все бинарные данные (ключи, подписи, nonce)
+      закодированы в Base64 (DER для ключей и подписи).  client_id - SHA256‑хэш от
+      (clientRSA‖clientECDSA), представлен в hex rsa_pub_server - Base64(DER‑закодированный
+      RSA‑публичный ключ сервера) ecdsa_pub_server - Base64(DER‑закодированный ECDSA‑публичный
+      ключ сервера) nonce2 - Base64(8‑байтовый случайный nonce) signature2 - Base64(DER‑подпись
+      SHA256(rsaServer || ecdsaServer || nonce2 || nonce1 || clientID) приватным ECDSA‑ключом
+      сервера)
+    properties:
+      client_id:
+        type: string
+      ecdsa_pub_server:
+        type: string
+      nonce2:
+        type: string
+      rsa_pub_server:
+        type: string
+      signature2:
+        type: string
+    type: object
+  dto.InternalServerErr:
+    properties:
+      error:
+        type: string
+    type: object
+  dto.UnauthorizedErr:
+    properties:
+      error:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Документация о внутренней реализации и логики работы находится в папке
+    docs
+  title: SecureComm API
+  version: "1.0"
+paths:
+  /handshake/finalize:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        ЗАПРОС ОТ КЛИЕНТА:
+        Клиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.
+        Подробнее про поле encrypted...
+        Рандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload
+        payload - это сумма байтов (ks || nonce3 || nonce2)
+        signature3 - это подписанный payload приватным ключем клиента
+        В конце encrypted это зашифрованные байты (payload || signature3(в DER формате))
+        encrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
+
+        ОТВЕТ ОТ СЕРВЕРА:
+        Сервер возвращает подпись h4 = SHA256(Ks || nonce3 || nonce2), подписанную приватным ECDSA‑ключом сервера и закодированную в Base64.
+      parameters:
+      - default: f44f210d1234abcd...
+        description: Client ID
+        in: header
+        name: X-Client-ID
+        required: true
+        type: string
+      - description: Параметры завершения Handshake
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.HandshakeFinalizeReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ сервера
+          schema:
+            $ref: '#/definitions/dto.HandshakeFinalizeResp'
+        "400":
+          description: Некорректный JSON или параметры
+          schema:
+            $ref: '#/definitions/dto.BadRequestErr'
+        "401":
+          description: Unauthorized или подпись не верна
+          schema:
+            $ref: '#/definitions/dto.UnauthorizedErr'
+        "409":
+          description: Conflict — повторный запрос (replay-detected)
+          schema:
+            $ref: '#/definitions/dto.ConflictErr'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.InternalServerErr'
+      summary: Завершает Handshake
+      tags:
+      - handshake
+  /handshake/init:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        ЗАПРОС ОТ КЛИЕНТА:
+        Клиент отправляет свои публичные ключи и nonce1, всё это подписано приватным ECDSA‑ключом.
+        Все бинарные данные (ключи, подписи, nonce) закодированы в Base64 (DER для ключей и подписи).
+
+        rsa_pub_client - Base64(DER‑закодированный RSA‑публичный ключ клиента)
+        ecdsa_pub_client - Base64(DER‑закодированный ECDSA‑публичный ключ клиента)
+        nonce1 - Base64(8‑байтовый случайный nonce)
+        signature1 - Base64(DER‑закодированная подпись SHA256(clientRSA || clientECDSA || nonce1) приватным ECDSA‑ключом клиента)
+
+        ОТВЕТ ОТ СЕРВЕРА:
+        Сервер отвечает своими публичными ключами и nonce2, всё это подписано приватным ECDSA‑ключом сервера.
+        Все бинарные данные (ключи, подписи, nonce) закодированы в Base64 (DER для ключей и подписи).
+
+        client_id - SHA256‑хэш от (clientRSA‖clientECDSA), представлен в hex
+        rsa_pub_server - Base64(DER‑закодированный RSA‑публичный ключ сервера)
+        ecdsa_pub_server - Base64(DER‑закодированный ECDSA‑публичный ключ сервера)
+        nonce2 - Base64(8‑байтовый случайный nonce)
+        signature2 - Base64(DER‑подпись SHA256(rsaServer || ecdsaServer || nonce2 || nonce1 || clientID) приватным ECDSA‑ключом сервера)
+      parameters:
+      - description: Параметры инициации Handshake
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.HandshakeInitReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешный ответ сервера
+          schema:
+            $ref: '#/definitions/dto.HandshakeInitResp'
+        "400":
+          description: Некорректный JSON или параметры
+          schema:
+            $ref: '#/definitions/dto.BadRequestErr'
+        "401":
+          description: Unauthorized или ошибка подписи
+          schema:
+            $ref: '#/definitions/dto.UnauthorizedErr'
+        "409":
+          description: Conflict — повторный запрос (replay-detected)
+          schema:
+            $ref: '#/definitions/dto.ConflictErr'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.InternalServerErr'
+      summary: Инициализация Handshake
+      tags:
+      - handshake
+swagger: "2.0"
