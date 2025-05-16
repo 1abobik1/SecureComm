@@ -1,3 +1,19 @@
 server/.env
 server/internal/keys/
 clients/golang/keys/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDE settings
+.idea/
+
+# Virtual environment
+venv/
+
