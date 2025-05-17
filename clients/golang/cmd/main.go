@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"example_client/internal/client"
 	fileloader "example_client/internal/file_loader"
 	"flag"
@@ -44,10 +46,19 @@ func main() {
 	session := client.DoFinalizeAPI(*finURL, *SesURL, initResp, ecdsaPriv)
 	fmt.Println("\nFinalize handshake time:", time.Since(startFin))
 
+	// test сессии, путем отправки тестового сообщения
 	startSesTest := time.Now()
-	if err := session.DoSessionTest("Hello, secure session!"); err != nil {
+	if err := session.DoSessionTest(generateBigMsg(mb25)); err != nil {
 		panic(err)
 	}
 	fmt.Println("\nSession test time:", time.Since(startSesTest))
 
+}
+
+const mb25 = 26214400
+
+func generateBigMsg(sizeBytes int) string {
+	b := make([]byte, sizeBytes)
+	rand.Read(b)
+	return base64.StdEncoding.EncodeToString(b)
 }

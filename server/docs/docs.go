@@ -142,7 +142,7 @@ const docTemplate = `{
         },
         "/session/test": {
             "post": {
-                "description": "Клиент отправляет зашифрованное Base64‑сообщение,\nсервер пытается расшифровать его текущим сессионным ключом, сохранённым по Client-ID.\nЕсли расшифровка прошла успешно, возвращает plaintext, иначе — ошибку.\n",
+                "description": "Клиент шлёт серверу зашифрованный пакет, объединяющий метаданные и payload данные:\ntimestamp - время отправки клиента в формате Unix миллисекунд (8 байт)\nnonce - криптографически стойкое случайное значение (16 байт) для защиты от replay\nIV - инициализационный вектор AES-CBC (16 байт)\nciphertext - результат AES-256-CBC шифрования сессионного payload'а + PKCS#7\ntag - HMAC-SHA256 от (IV||ciphertext) для целостности данных\n\nпо итогу клиент отправляет:\nencrypted_message = timestamp(8 byte) || nonce(16 byte) || IV(16 byte) || ciphertext || tag(32 byte)\nclient_signature = Base64(DER‑закодированная подпись SHA256(timestamp || nonce || IV || ciphertext || tag) приватным ECDSA‑ключом клиента\n\nСервер выполняет следующие шаги:\nДекодирует Base64 и извлекает blob.\nИзвлекает timestamp и nonce из первых 24 байт и проверяет не использован ли nonce и если diff = (client_timestamp - server_timestamp) \u003e допустимому окну(30секунд). если это так, то запрос отклоняется с ошибкой\nПолучает K_enc и K_mac по clientID, иначе 401 Unauthorized;\nПроверяет HMAC-SHA256(iv||ciphertext), иначе 401 Unauthorized;\nРасшифровывает AES-256-CBC, снимает PKCS#7 padding, иначе 400 Bad Request;\nВозвращает JSON с plaintext - декодированный userData.",
                 "consumes": [
                     "application/json"
                 ],
@@ -152,42 +152,48 @@ const docTemplate = `{
                 "tags": [
                     "session"
                 ],
-                "summary": "Тестовое расшифрование сессионного сообщения",
+                "summary": "Тестовое расшифрование и проверка целостности сессионного сообщения",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Client ID",
+                        "description": "Client ID — идентификатор сессии",
                         "name": "X-Client-ID",
                         "in": "header",
                         "required": true
                     },
                     {
-                        "description": "Тестовое зашифрованное сообщение",
+                        "description": "Метаданные + зашифрованный payload в Base64",
                         "name": "input",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/dto.SessionTestReq"
+                            "$ref": "#/definitions/dto.SessionMessageReq"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Расшифрованный текст",
+                        "description": "Успешный ответ: plaintext",
                         "schema": {
-                            "$ref": "#/definitions/dto.SessionTestResp"
+                            "$ref": "#/definitions/dto.SessionMessageResp"
                         }
                     },
                     "400": {
-                        "description": "Некорректный Base64 или параметры",
+                        "description": "Неверный формат Base64, устаревший timestamp или padding",
                         "schema": {
                             "$ref": "#/definitions/dto.BadRequestErr"
                         }
                     },
                     "401": {
-                        "description": "Не удалось расшифровать сообщение (invalid session/key)",
+                        "description": "Session not found или проверка HMAC не прошла",
                         "schema": {
                             "$ref": "#/definitions/dto.UnauthorizedErr"
+                        }
+                    },
+                    "409": {
+                        "description": "Повторное использование nonce (replay)",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ConflictErr"
                         }
                     },
                     "500": {
@@ -286,22 +292,22 @@ const docTemplate = `{
                 }
             }
         },
-        "dto.SessionTestReq": {
-            "description": "Клиент шлёт зашифрованное сессионным ключом сообщение в Base64.",
+        "dto.SessionMessageReq": {
             "type": "object",
             "properties": {
+                "client_signature": {
+                    "type": "string"
+                },
                 "encrypted_message": {
-                    "description": "Base64(ciphertext), полученный при шифровании сессии",
+                    "description": "Base64(IV || ciphertext || tag)",
                     "type": "string"
                 }
             }
         },
-        "dto.SessionTestResp": {
-            "description": "Сервер вернул plaintext, расшифрованный текущим сессионным ключом.",
+        "dto.SessionMessageResp": {
             "type": "object",
             "properties": {
                 "plaintext": {
-                    "description": "Расшифрованный текст (UTF-8)",
                     "type": "string"
                 }
             }

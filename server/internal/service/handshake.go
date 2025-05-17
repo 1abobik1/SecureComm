@@ -19,10 +19,10 @@ func (s *service) Init(ctx context.Context, clientID string, clientRSAPubDER, cl
 	const op = "location internal.service.handshake_init.Init"
 
 	// replay-защита
-	if s.nonces.Has(ctx, nonce1) {
+	if s.hsNonces.Has(ctx, nonce1) {
 		return nil, nil, nil, nil, ErrReplayDetected
 	}
-	s.nonces.Add(ctx, nonce1)
+	s.hsNonces.Add(ctx, nonce1)
 
 	// получаем серверные ключи
 	_, rsaPubS, ecdsaPrivS, ecdsaPubS := s.servKeysStore.GetServerKeys()
@@ -159,10 +159,10 @@ func (s *service) Finalize(ctx context.Context, clientID string, encrypted []byt
 	nonce2 := payload[40:48]
 
 	// replay–защита nonce3
-	if s.nonces.Has(ctx, nonce3) {
+	if s.hsNonces.Has(ctx, nonce3) {
 		return nil, ErrReplayDetected
 	}
-	s.nonces.Add(ctx, nonce3)
+	s.hsNonces.Add(ctx, nonce3)
 
 	kEnc := hkdfSha256(ks, []byte("enc"))
 	kMac := hkdfSha256(ks, []byte("mac"))

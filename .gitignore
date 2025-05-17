@@ -1,6 +1,8 @@
+# golang
 server/.env
 server/internal/keys/
 clients/golang/keys/
+clients/golang/internal/big_message/
 
 # Python
 __pycache__/

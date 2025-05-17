@@ -12,5 +12,5 @@ up: build
 up-rebuild: build
 	docker-compose up --build
 
-create-docs:
+gen-docs:
 	swag init -g cmd/server/main.go -o docs

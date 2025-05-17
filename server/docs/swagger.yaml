@@ -74,18 +74,17 @@ definitions:
       error:
         type: string
     type: object
-  dto.SessionTestReq:
-    description: Клиент шлёт зашифрованное сессионным ключом сообщение в Base64.
+  dto.SessionMessageReq:
     properties:
+      client_signature:
+        type: string
       encrypted_message:
-        description: Base64(ciphertext), полученный при шифровании сессии
+        description: Base64(IV || ciphertext || tag)
         type: string
     type: object
-  dto.SessionTestResp:
-    description: Сервер вернул plaintext, расшифрованный текущим сессионным ключом.
+  dto.SessionMessageResp:
     properties:
       plaintext:
-        description: Расшифрованный текст (UTF-8)
         type: string
     type: object
   dto.UnauthorizedErr:
@@ -216,42 +215,61 @@ paths:
     post:
       consumes:
       - application/json
-      description: |
-        Клиент отправляет зашифрованное Base64‑сообщение,
-        сервер пытается расшифровать его текущим сессионным ключом, сохранённым по Client-ID.
-        Если расшифровка прошла успешно, возвращает plaintext, иначе — ошибку.
+      description: |-
+        Клиент шлёт серверу зашифрованный пакет, объединяющий метаданные и payload данные:
+        timestamp - время отправки клиента в формате Unix миллисекунд (8 байт)
+        nonce - криптографически стойкое случайное значение (16 байт) для защиты от replay
+        IV - инициализационный вектор AES-CBC (16 байт)
+        ciphertext - результат AES-256-CBC шифрования сессионного payload'а + PKCS#7
+        tag - HMAC-SHA256 от (IV||ciphertext) для целостности данных
+
+        по итогу клиент отправляет:
+        encrypted_message = timestamp(8 byte) || nonce(16 byte) || IV(16 byte) || ciphertext || tag(32 byte)
+        client_signature = Base64(DER‑закодированная подпись SHA256(timestamp || nonce || IV || ciphertext || tag) приватным ECDSA‑ключом клиента
+
+        Сервер выполняет следующие шаги:
+        Декодирует Base64 и извлекает blob.
+        Извлекает timestamp и nonce из первых 24 байт и проверяет не использован ли nonce и если diff = (client_timestamp - server_timestamp) > допустимому окну(30секунд). если это так, то запрос отклоняется с ошибкой
+        Получает K_enc и K_mac по clientID, иначе 401 Unauthorized;
+        Проверяет HMAC-SHA256(iv||ciphertext), иначе 401 Unauthorized;
+        Расшифровывает AES-256-CBC, снимает PKCS#7 padding, иначе 400 Bad Request;
+        Возвращает JSON с plaintext - декодированный userData.
       parameters:
-      - description: Client ID
+      - description: Client ID — идентификатор сессии
         in: header
         name: X-Client-ID
         required: true
         type: string
-      - description: Тестовое зашифрованное сообщение
+      - description: Метаданные + зашифрованный payload в Base64
         in: body
         name: input
         required: true
         schema:
-          $ref: '#/definitions/dto.SessionTestReq'
+          $ref: '#/definitions/dto.SessionMessageReq'
       produces:
       - application/json
       responses:
         "200":
-          description: Расшифрованный текст
+          description: 'Успешный ответ: plaintext'
           schema:
-            $ref: '#/definitions/dto.SessionTestResp'
+            $ref: '#/definitions/dto.SessionMessageResp'
         "400":
-          description: Некорректный Base64 или параметры
+          description: Неверный формат Base64, устаревший timestamp или padding
           schema:
             $ref: '#/definitions/dto.BadRequestErr'
         "401":
-          description: Не удалось расшифровать сообщение (invalid session/key)
+          description: Session not found или проверка HMAC не прошла
           schema:
             $ref: '#/definitions/dto.UnauthorizedErr'
+        "409":
+          description: Повторное использование nonce (replay)
+          schema:
+            $ref: '#/definitions/dto.ConflictErr'
         "500":
           description: Внутренняя ошибка сервера
           schema:
             $ref: '#/definitions/dto.InternalServerErr'
-      summary: Тестовое расшифрование сессионного сообщения
+      summary: Тестовое расшифрование и проверка целостности сессионного сообщения
       tags:
       - session
 swagger: "2.0"

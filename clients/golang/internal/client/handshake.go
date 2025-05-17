@@ -137,7 +137,7 @@ func DoFinalizeAPI(url, sessionTestURL string, initResp *dto.HandshakeResp, ecds
 	if _, err := rand.Read(ks); err != nil {
 		panic(err)
 	}
-	
+
 	_, nonce3, err := GenerateRandBytes(8)
 	if err != nil {
 		panic(err)
@@ -211,5 +211,5 @@ func DoFinalizeAPI(url, sessionTestURL string, initResp *dto.HandshakeResp, ecds
 
 	fmt.Println("Finalize OK, server signature verified")
 
-	return NewSession(initResp.ClientID, ks, sessionTestURL)
+	return NewSession(initResp.ClientID, ecdsaPriv, ks, sessionTestURL)
 }

@@ -40,6 +40,8 @@ import (
 // @Failure     500     {object}  dto.InternalServerErr  "Внутренняя ошибка сервера"
 // @Router      /handshake/init [post]
 func (h *handler) Init(c *gin.Context) {
+	const op = "location internal.handler.handshake.Init"
+
 	var req dto.HandshakeInitReq
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,10 +55,13 @@ func (h *handler) Init(c *gin.Context) {
 	sig1 := decodeOrAbort(c, req.Signature1)
 
 	if c.IsAborted() {
+		logrus.Errorf("%s: invalid base64 payload", op)
 		return
 	}
 
 	clientID := h.svc.ComputeFingerprint(c, rsaPubClient, ecdsaPubClient)
+
+	logrus.Infof("created new clientID: %s", clientID)
 
 	serverRSA, serverECDSA, nonce2, sig2, err := h.svc.Init(c, clientID, rsaPubClient, ecdsaPubClient, nonce1, sig1)
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 	"github.com/1abobik1/SecureComm/internal/handler"
 	"github.com/1abobik1/SecureComm/internal/middleware"
 	"github.com/1abobik1/SecureComm/internal/repository/client_keystore"
-	"github.com/1abobik1/SecureComm/internal/repository/client_noncestore"
+	"github.com/1abobik1/SecureComm/internal/repository/nonce_store"
 	"github.com/1abobik1/SecureComm/internal/repository/server_keystore"
 	"github.com/1abobik1/SecureComm/internal/repository/session_store"
 
@@ -62,10 +62,16 @@ func main() {
 		cfg.Redis.SessionKeyTTL,
 	)
 
-	// redis для хранения nonces
-	nonceStore := client_noncestore.NewRedisNonceStore(
+	// redis для хранения nonces для handshake
+	hsNonceStore := nonce_store.NewRedisNonceStore(
 		cfg.Redis.ServerAddr,
-		cfg.Redis.NoncesTTL,
+		cfg.Redis.HandshakeNoncesTTL,
+	)
+
+	// redis для хранения nonces после handshake при обмене сообщениями
+	sesNonceStore := nonce_store.NewRedisSessionNonceStore(
+		cfg.Redis.ServerAddr,
+		cfg.Redis.SessionNoncesTTL,
 	)
 
 	// redis для хранения сессионных строк
@@ -75,7 +81,7 @@ func main() {
 	)
 
 	// сервисный слой
-	hsService := service.NewService(nonceStore, serverKeys, clientKeys, sessionStore)
+	hsService := service.NewService(hsNonceStore, sesNonceStore, serverKeys, clientKeys, sessionStore)
 
 	// хендлерный слой
 	h := handler.NewHandler(hsService)
@@ -85,6 +91,14 @@ func main() {
 	hsLimiter.SetBurst(cfg.HSLimiter.Burst)
 	// limiter сначала пробует сделать лимит по client_id, если его нет в header, то по ip
 	hsLimiter.SetIPLookups([]string{
+		"Header:X-Client-ID",
+		"RemoteAddr",
+	})
+
+	sessionLimiter := tb.NewLimiter(cfg.SesLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.SesLimiter.TTL})
+	sessionLimiter.SetBurst(cfg.SesLimiter.Burst)
+	// limiter сначала пробует сделать лимит по client_id, если его нет в header, то по ip
+	sessionLimiter.SetIPLookups([]string{
 		"Header:X-Client-ID",
 		"RemoteAddr",
 	})
@@ -102,7 +116,7 @@ func main() {
 
 	sGroup := r.Group("/session")
 	{
-		sGroup.POST("/test", middleware.RequireClientID(), toll_gin.LimitHandler(hsLimiter), h.SessionTester)
+		sGroup.POST("/test", middleware.RequireClientID(), toll_gin.LimitHandler(sessionLimiter), h.SessionTester)
 	}
 
 	// запуск серва

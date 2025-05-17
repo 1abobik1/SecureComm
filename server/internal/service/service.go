@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rsa"
 	"errors"
+	"time"
 )
 
 var (
@@ -12,12 +13,20 @@ var (
 	ErrInvalidPayload = errors.New("invalid encrypted payload")
 	ErrBadSignature   = errors.New("ECDSA signature verification failed")
 	ErrBadMAC         = errors.New("message authentication failed")
-	ErrInvalidSession = errors.New("invalid session or keys"))
+	ErrInvalidSession = errors.New("invalid session or keys")
+	ErrStaleTimestamp = errors.New("stale timestamp")
+)
 
 // хранит использованные nonces, чтобы отсеять replay
-type NonceStore interface {
+type HandshakeNoncesStore interface {
 	Has(ctx context.Context, nonce []byte) bool
 	Add(ctx context.Context, nonce []byte)
+}
+
+type SessioneNoncesStore interface {
+	Has(ctx context.Context, nonce []byte) bool
+	Add(ctx context.Context, nonce []byte)
+	GetNonceTTL() time.Duration
 }
 
 // даёт доступ к парам ключей сервера
@@ -40,15 +49,17 @@ type SessionStore interface {
 }
 
 type service struct {
-	nonces            NonceStore
+	hsNonces          HandshakeNoncesStore
+	sesNonces         SessioneNoncesStore
 	servKeysStore     ServerKeyStore
 	clientPubKeyStore ClientPubKeyStore
 	sessions          SessionStore
 }
 
-func NewService(nonces NonceStore, servKeysStore ServerKeyStore, clientPubKeyStore ClientPubKeyStore, sessionStore SessionStore) *service {
+func NewService(hsNonces HandshakeNoncesStore, sesNonces SessioneNoncesStore, servKeysStore ServerKeyStore, clientPubKeyStore ClientPubKeyStore, sessionStore SessionStore) *service {
 	return &service{
-		nonces:            nonces,
+		hsNonces:          hsNonces,
+		sesNonces:         sesNonces,
 		servKeysStore:     servKeysStore,
 		clientPubKeyStore: clientPubKeyStore,
 		sessions:          sessionStore,
