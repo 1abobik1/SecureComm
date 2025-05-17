@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -113,7 +114,7 @@ func DoInitAPI(url string, rsaPubDER, ecdsaPubDER []byte, ecdsaPriv *ecdsa.Priva
 	return &hr
 }
 
-func DoFinalizeAPI(url string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.PrivateKey) dto.FinalizeResp {
+func DoFinalizeAPI(url, sessionTestURL string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.PrivateKey) *Session {
 	// декодируем RSA публичный ключ сервера
 	rsaPubDER, err := base64.StdEncoding.DecodeString(initResp.RSAPubServer)
 	if err != nil {
@@ -132,10 +133,11 @@ func DoFinalizeAPI(url string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.Pri
 	}
 
 	// генерируем ks и nonce3
-	_, ks, err := GenerateRandBytes(32)
-	if err != nil {
+	ks := make([]byte, 32)
+	if _, err := rand.Read(ks); err != nil {
 		panic(err)
 	}
+	
 	_, nonce3, err := GenerateRandBytes(8)
 	if err != nil {
 		panic(err)
@@ -208,5 +210,6 @@ func DoFinalizeAPI(url string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.Pri
 	}
 
 	fmt.Println("Finalize OK, server signature verified")
-	return fr
+
+	return NewSession(initResp.ClientID, ks, sessionTestURL)
 }

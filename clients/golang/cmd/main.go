@@ -15,6 +15,8 @@ func main() {
 	ecdsaPrivPath := flag.String("ecdsa-priv", "keys/client_ecdsa.pem", "")
 	initURL := flag.String("init-url", "http://localhost:8080/handshake/init", "")
 	finURL := flag.String("fin-url", "http://localhost:8080/handshake/finalize", "")
+	SesURL := flag.String("session-test-url", "http://localhost:8080/session/test", "")
+
 	flag.Parse()
 
 	// Load files
@@ -39,8 +41,13 @@ func main() {
 
 	// Finalize
 	startFin := time.Now()
-	finResp := client.DoFinalizeAPI(*finURL, initResp, ecdsaPriv)
-	fmt.Printf("Finalize resp: %+v\n", finResp)
-	fmt.Println("\nInit handshake time:", time.Since(startFin))
+	session := client.DoFinalizeAPI(*finURL, *SesURL, initResp, ecdsaPriv)
+	fmt.Println("\nFinalize handshake time:", time.Since(startFin))
+
+	startSesTest := time.Now()
+	if err := session.DoSessionTest("Hello, secure session!"); err != nil {
+		panic(err)
+	}
+	fmt.Println("\nSession test time:", time.Since(startSesTest))
 
 }

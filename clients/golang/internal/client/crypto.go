@@ -1,6 +1,7 @@
 package client
 
 import (
+	"crypto/aes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
@@ -71,4 +72,12 @@ func ParseECDSAPriv(pemBytes []byte) (*ecdsa.PrivateKey, error) {
 		}
 	}
 	return nil, fmt.Errorf("unable to parse ECDSA private key")
+}
+
+func pkcs7Pad(data []byte) []byte {
+	pad := aes.BlockSize - len(data)%aes.BlockSize
+	for i := 0; i < pad; i++ {
+		data = append(data, byte(pad))
+	}
+	return data
 }

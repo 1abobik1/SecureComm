@@ -19,7 +19,7 @@ import (
 // @Description ecdsa_pub_client - Base64(DER‑закодированный ECDSA‑публичный ключ клиента)
 // @Description nonce1 - Base64(8‑байтовый случайный nonce)
 // @Description signature1 - Base64(DER‑закодированная подпись SHA256(clientRSA || clientECDSA || nonce1) приватным ECDSA‑ключом клиента)
-// @Description 
+// @Description
 // @Description ОТВЕТ ОТ СЕРВЕРА:
 // @description Сервер отвечает своими публичными ключами и nonce2, всё это подписано приватным ECDSA‑ключом сервера.
 // @description Все бинарные данные (ключи, подписи, nonce) закодированы в Base64 (DER для ключей и подписи).
@@ -84,13 +84,13 @@ func (h *handler) Init(c *gin.Context) {
 // @Summary      Завершает Handshake
 // @description ЗАПРОС ОТ КЛИЕНТА:
 // @description Клиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.
-// @description Подробнее про поле encrypted... 
+// @description Подробнее про поле encrypted...
 // @description Рандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload
 // @description payload - это сумма байтов (ks || nonce3 || nonce2)
 // @description signature3 - это подписанный payload приватным ключем клиента
 // @description В конце encrypted это зашифрованные байты (payload || signature3(в DER формате))
 // @description encrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
-// @Description 
+// @Description
 // @description ОТВЕТ ОТ СЕРВЕРА:
 // @description Сервер возвращает подпись h4 = SHA256(Ks || nonce3 || nonce2), подписанную приватным ECDSA‑ключом сервера и закодированную в Base64.
 // @Tags         handshake

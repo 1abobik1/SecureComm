@@ -74,6 +74,20 @@ definitions:
       error:
         type: string
     type: object
+  dto.SessionTestReq:
+    description: Клиент шлёт зашифрованное сессионным ключом сообщение в Base64.
+    properties:
+      encrypted_message:
+        description: Base64(ciphertext), полученный при шифровании сессии
+        type: string
+    type: object
+  dto.SessionTestResp:
+    description: Сервер вернул plaintext, расшифрованный текущим сессионным ключом.
+    properties:
+      plaintext:
+        description: Расшифрованный текст (UTF-8)
+        type: string
+    type: object
   dto.UnauthorizedErr:
     properties:
       error:
@@ -198,4 +212,46 @@ paths:
       summary: Инициализация Handshake
       tags:
       - handshake
+  /session/test:
+    post:
+      consumes:
+      - application/json
+      description: |
+        Клиент отправляет зашифрованное Base64‑сообщение,
+        сервер пытается расшифровать его текущим сессионным ключом, сохранённым по Client-ID.
+        Если расшифровка прошла успешно, возвращает plaintext, иначе — ошибку.
+      parameters:
+      - description: Client ID
+        in: header
+        name: X-Client-ID
+        required: true
+        type: string
+      - description: Тестовое зашифрованное сообщение
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SessionTestReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Расшифрованный текст
+          schema:
+            $ref: '#/definitions/dto.SessionTestResp'
+        "400":
+          description: Некорректный Base64 или параметры
+          schema:
+            $ref: '#/definitions/dto.BadRequestErr'
+        "401":
+          description: Не удалось расшифровать сообщение (invalid session/key)
+          schema:
+            $ref: '#/definitions/dto.UnauthorizedErr'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.InternalServerErr'
+      summary: Тестовое расшифрование сессионного сообщения
+      tags:
+      - session
 swagger: "2.0"

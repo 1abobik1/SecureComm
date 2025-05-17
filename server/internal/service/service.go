@@ -11,7 +11,8 @@ var (
 	ErrReplayDetected = errors.New("replay detected")
 	ErrInvalidPayload = errors.New("invalid encrypted payload")
 	ErrBadSignature   = errors.New("ECDSA signature verification failed")
-)
+	ErrBadMAC         = errors.New("message authentication failed")
+	ErrInvalidSession = errors.New("invalid session or keys"))
 
 // хранит использованные nonces, чтобы отсеять replay
 type NonceStore interface {

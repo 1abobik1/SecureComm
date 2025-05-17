@@ -139,6 +139,65 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/session/test": {
+            "post": {
+                "description": "Клиент отправляет зашифрованное Base64‑сообщение,\nсервер пытается расшифровать его текущим сессионным ключом, сохранённым по Client-ID.\nЕсли расшифровка прошла успешно, возвращает plaintext, иначе — ошибку.\n",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "session"
+                ],
+                "summary": "Тестовое расшифрование сессионного сообщения",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "X-Client-ID",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Тестовое зашифрованное сообщение",
+                        "name": "input",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SessionTestReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Расшифрованный текст",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SessionTestResp"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный Base64 или параметры",
+                        "schema": {
+                            "$ref": "#/definitions/dto.BadRequestErr"
+                        }
+                    },
+                    "401": {
+                        "description": "Не удалось расшифровать сообщение (invalid session/key)",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UnauthorizedErr"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/dto.InternalServerErr"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -223,6 +282,26 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SessionTestReq": {
+            "description": "Клиент шлёт зашифрованное сессионным ключом сообщение в Base64.",
+            "type": "object",
+            "properties": {
+                "encrypted_message": {
+                    "description": "Base64(ciphertext), полученный при шифровании сессии",
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SessionTestResp": {
+            "description": "Сервер вернул plaintext, расшифрованный текущим сессионным ключом.",
+            "type": "object",
+            "properties": {
+                "plaintext": {
+                    "description": "Расшифрованный текст (UTF-8)",
                     "type": "string"
                 }
             }

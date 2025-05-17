@@ -19,9 +19,9 @@ import (
 	"github.com/didip/tollbooth/v7/limiter"
 	toll_gin "github.com/didip/tollbooth_gin"
 
+	_ "github.com/1abobik1/SecureComm/docs"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	_ "github.com/1abobik1/SecureComm/docs"
 )
 
 func init() {
@@ -59,6 +59,7 @@ func main() {
 	// redis для клиентских публичных ключей
 	clientKeys := client_keystore.NewRedisClientPubKeyStore(
 		cfg.Redis.ServerAddr,
+		cfg.Redis.SessionKeyTTL,
 	)
 
 	// redis для хранения nonces
@@ -77,7 +78,7 @@ func main() {
 	hsService := service.NewService(nonceStore, serverKeys, clientKeys, sessionStore)
 
 	// хендлерный слой
-	hsHandler := handler.NewHandler(hsService)
+	h := handler.NewHandler(hsService)
 
 	// limiter для /handshake
 	hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
@@ -92,11 +93,16 @@ func main() {
 	r := gin.Default()
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler)) // свагер документация
-	
-	hs := r.Group("/handshake")
+
+	hsGroup := r.Group("/handshake")
 	{
-		hs.POST("/init", toll_gin.LimitHandler(hsLimiter), hsHandler.Init)
-		hs.POST("/finalize", middleware.RequireClientID(), toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
+		hsGroup.POST("/init", toll_gin.LimitHandler(hsLimiter), h.Init)
+		hsGroup.POST("/finalize", middleware.RequireClientID(), toll_gin.LimitHandler(hsLimiter), h.Finalize)
+	}
+
+	sGroup := r.Group("/session")
+	{
+		sGroup.POST("/test", middleware.RequireClientID(), toll_gin.LimitHandler(hsLimiter), h.SessionTester)
 	}
 
 	// запуск серва

@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (s *service) Init(ctx context.Context, clientID string, clientRSAPubDER, clientECDSAPubDER, nonce1, sig1 []byte) (serverRSA, serverECDSA, nonce2, signature2 []byte, err error) {
+func (s *service) Init(ctx context.Context, clientID string, clientRSAPubDER, clientECDSAPubDER, nonce1, sig1 []byte) (serverRSA, serverECDSA, nonce2, signature2 []byte, er error) {
 	const op = "location internal.service.handshake_init.Init"
 
 	// replay-защита
@@ -109,7 +109,7 @@ func (s *service) ComputeFingerprint(ctx context.Context, rsaPub, ecdsaPub []byt
 
 // Finalize расшифровывает и проверяет подписанное RSA-OAEP сообщение,
 // извлекает key_session и nonce3, проверяет ECDSA-подпись, и возвращает nil в случае успеха.
-func (s *service) Finalize(ctx context.Context, clientID string, encrypted []byte) (signature4 []byte, err error) {
+func (s *service) Finalize(ctx context.Context, clientID string, encrypted []byte) (signature4 []byte, er error) {
 	const op = "internal.service.handshake.Finalize"
 
 	rsaPrivS, _, ecdsaPrivS, _ := s.servKeysStore.GetServerKeys()
