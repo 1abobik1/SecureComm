@@ -1,3 +1,5 @@
+.idea
 server/.env
 server/internal/keys/
 clients/golang/keys/
+clients/javascript/node_modules
