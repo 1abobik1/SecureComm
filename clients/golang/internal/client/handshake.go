@@ -149,21 +149,19 @@ func DoFinalizeAPI(url, sessionTestURL string, initResp *dto.HandshakeResp, ecds
 	if err != nil {
 		panic(err)
 	}
-	// декодируем base64 -> raw DER
-	sig3DER, err := base64.StdEncoding.DecodeString(sig3b64)
-	if err != nil {
-		panic(err)
-	}
 
 	//  шифруем payload || sig3DER
-	toEncrypt := append(payload, sig3DER...)
-	cipherB64, err := EncryptRSA(rsaPubSrv, toEncrypt)
+	// toEncrypt := append(payload, sig3DER...)
+	cipherB64, err := EncryptRSA(rsaPubSrv, payload)
 	if err != nil {
 		panic(err)
 	}
 
 	// отправляем Finalize-запрос
-	reqBody := dto.FinalizeReq{Encrypted: cipherB64}
+	reqBody := dto.FinalizeReq{
+		Encrypted:  cipherB64,
+		Signature3: sig3b64,
+	}
 	headers := map[string]string{"X-Client-ID": initResp.ClientID}
 	resp, err := PostJSON(url, reqBody, headers)
 	if err != nil {

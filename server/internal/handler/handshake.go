@@ -89,11 +89,11 @@ func (h *handler) Init(c *gin.Context) {
 // @Summary      Завершает Handshake
 // @description ЗАПРОС ОТ КЛИЕНТА:
 // @description Клиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.
+// @description и signature подписанный payload приватным ключем клиента
 // @description Подробнее про поле encrypted...
 // @description Рандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload
 // @description payload - это сумма байтов (ks || nonce3 || nonce2)
 // @description signature3 - это подписанный payload приватным ключем клиента
-// @description В конце encrypted это зашифрованные байты (payload || signature3(в DER формате))
 // @description encrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
 // @Description
 // @description ОТВЕТ ОТ СЕРВЕРА:
@@ -124,10 +124,17 @@ func (h *handler) Finalize(c *gin.Context) {
 		return
 	}
 
+	sig3, err := decode(req.Signature3)
+	if err != nil {
+		logrus.Errorf("Error: %v", err)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
 	// достаем clientID с контекста от middleware
 	clientID := c.GetString("clientID")
 
-	sig4, err := h.svc.Finalize(c, clientID, encrypted)
+	sig4, err := h.svc.Finalize(c, clientID, sig3, encrypted)
 	if err != nil {
 		if errors.Is(err, service.ErrReplayDetected) {
 			logrus.Errorf("Service error: %s", err.Error())

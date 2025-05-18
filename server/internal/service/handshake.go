@@ -109,14 +109,14 @@ func (s *service) ComputeFingerprint(ctx context.Context, rsaPub, ecdsaPub []byt
 
 // Finalize расшифровывает и проверяет подписанное RSA-OAEP сообщение,
 // извлекает key_session и nonce3, проверяет ECDSA-подпись, и возвращает nil в случае успеха.
-func (s *service) Finalize(ctx context.Context, clientID string, encrypted []byte) (signature4 []byte, er error) {
+func (s *service) Finalize(ctx context.Context, clientID string, sig3, encrypted []byte) (signature4 []byte, er error) {
 	const op = "internal.service.handshake.Finalize"
 
 	rsaPrivS, _, ecdsaPrivS, _ := s.servKeysStore.GetServerKeys()
 
 	// RSA-OAEP расшифровка
-	// toEncrypt = payload ∥ signature3(DER)
-	toEncrypt, err := rsaPrivS.Decrypt(
+	// toEncrypt = payload
+	payload, err := rsaPrivS.Decrypt(
 		nil,
 		encrypted,
 		&rsa.OAEPOptions{Hash: crypto.SHA256},
@@ -126,17 +126,14 @@ func (s *service) Finalize(ctx context.Context, clientID string, encrypted []byt
 		return nil, ErrInvalidPayload
 	}
 
-	// разбираем payload и sig3
 	// payloadLen = 32 + 8 + 8 = 48 байт
-	if len(toEncrypt) < 48 {
+	if len(payload) < 48 {
 		return nil, ErrInvalidPayload
 	}
-	payload := toEncrypt[:48]
-	sig3DER := toEncrypt[48:]
 
 	// парсим signature3 в r3, s3
-	var sig3 der
-	if _, err := asn1.Unmarshal(sig3DER, &sig3); err != nil {
+	var sig3DER der
+	if _, err := asn1.Unmarshal(sig3, &sig3DER); err != nil {
 		logrus.Errorf("%s: unmarshal sig3: %v", op, err)
 		return nil, ErrInvalidPayload
 	}
@@ -149,7 +146,7 @@ func (s *service) Finalize(ctx context.Context, clientID string, encrypted []byt
 
 	// проверяем подпись ECDSA публичным ключем клиента: h3 = sha256(payload)
 	h3 := sha256.Sum256(payload)
-	if !ecdsa.Verify(clientECDSAPub, h3[:], sig3.R, sig3.S) {
+	if !ecdsa.Verify(clientECDSAPub, h3[:], sig3DER.R, sig3DER.S) {
 		return nil, ErrBadSignature
 	}
 

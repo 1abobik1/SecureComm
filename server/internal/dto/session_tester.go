@@ -1,6 +1,6 @@
 package dto
 
-// SessionMessageReq — зашифрованное сообщение с metadata.
+// SessionMessageReq — зашифрованное сообщение с metadata(timestamp + nonce). также всё это подписано приватным ключем клиента
 // swagger:model SessionMessageReq
 type SessionMessageReq struct {
 	// Base64(IV || ciphertext || tag)
