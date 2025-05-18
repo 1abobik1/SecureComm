@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"example_client/internal/client"
 	fileloader "example_client/internal/file_loader"
 	"flag"
@@ -15,6 +17,8 @@ func main() {
 	ecdsaPrivPath := flag.String("ecdsa-priv", "keys/client_ecdsa.pem", "")
 	initURL := flag.String("init-url", "http://localhost:8080/handshake/init", "")
 	finURL := flag.String("fin-url", "http://localhost:8080/handshake/finalize", "")
+	SesURL := flag.String("session-test-url", "http://localhost:8080/session/test", "")
+
 	flag.Parse()
 
 	// Load files
@@ -39,8 +43,22 @@ func main() {
 
 	// Finalize
 	startFin := time.Now()
-	finResp := client.DoFinalizeAPI(*finURL, initResp, ecdsaPriv)
-	fmt.Printf("Finalize resp: %+v\n", finResp)
-	fmt.Println("\nInit handshake time:", time.Since(startFin))
+	session := client.DoFinalizeAPI(*finURL, *SesURL, initResp, ecdsaPriv)
+	fmt.Println("\nFinalize handshake time:", time.Since(startFin))
 
+	// test сессии, путем отправки тестового сообщения
+	startSesTest := time.Now()
+	if err := session.DoSessionTest(generateBigMsg(mb10)); err != nil {
+		panic(err)
+	}
+	fmt.Println("\nSession test time:", time.Since(startSesTest))
+
+}
+
+const mb10 = 10485760
+
+func generateBigMsg(sizeBytes int) string {
+	b := make([]byte, sizeBytes)
+	rand.Read(b)
+	return base64.StdEncoding.EncodeToString(b)
 }

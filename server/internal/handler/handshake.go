@@ -19,7 +19,7 @@ import (
 // @Description ecdsa_pub_client - Base64(DER‑закодированный ECDSA‑публичный ключ клиента)
 // @Description nonce1 - Base64(8‑байтовый случайный nonce)
 // @Description signature1 - Base64(DER‑закодированная подпись SHA256(clientRSA || clientECDSA || nonce1) приватным ECDSA‑ключом клиента)
-// @Description 
+// @Description
 // @Description ОТВЕТ ОТ СЕРВЕРА:
 // @description Сервер отвечает своими публичными ключами и nonce2, всё это подписано приватным ECDSA‑ключом сервера.
 // @description Все бинарные данные (ключи, подписи, nonce) закодированы в Base64 (DER для ключей и подписи).
@@ -40,6 +40,8 @@ import (
 // @Failure     500     {object}  dto.InternalServerErr  "Внутренняя ошибка сервера"
 // @Router      /handshake/init [post]
 func (h *handler) Init(c *gin.Context) {
+	const op = "location internal.handler.handshake.Init"
+
 	var req dto.HandshakeInitReq
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,10 +55,13 @@ func (h *handler) Init(c *gin.Context) {
 	sig1 := decodeOrAbort(c, req.Signature1)
 
 	if c.IsAborted() {
+		logrus.Errorf("%s: invalid base64 payload", op)
 		return
 	}
 
 	clientID := h.svc.ComputeFingerprint(c, rsaPubClient, ecdsaPubClient)
+
+	logrus.Infof("created new clientID: %s", clientID)
 
 	serverRSA, serverECDSA, nonce2, sig2, err := h.svc.Init(c, clientID, rsaPubClient, ecdsaPubClient, nonce1, sig1)
 	if err != nil {
@@ -84,13 +89,13 @@ func (h *handler) Init(c *gin.Context) {
 // @Summary      Завершает Handshake
 // @description ЗАПРОС ОТ КЛИЕНТА:
 // @description Клиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.
-// @description Подробнее про поле encrypted... 
+// @description и signature подписанный payload приватным ключем клиента
+// @description об отправляемых полях клиентом encrypted и signature3:
 // @description Рандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload
 // @description payload - это сумма байтов (ks || nonce3 || nonce2)
-// @description signature3 - это подписанный payload приватным ключем клиента
-// @description В конце encrypted это зашифрованные байты (payload || signature3(в DER формате))
+// @description signature3 - это подписанный payload приватным ключем ECDSA клиента в base64
 // @description encrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
-// @Description 
+// @Description
 // @description ОТВЕТ ОТ СЕРВЕРА:
 // @description Сервер возвращает подпись h4 = SHA256(Ks || nonce3 || nonce2), подписанную приватным ECDSA‑ключом сервера и закодированную в Base64.
 // @Tags         handshake
@@ -119,10 +124,17 @@ func (h *handler) Finalize(c *gin.Context) {
 		return
 	}
 
+	sig3, err := decode(req.Signature3)
+	if err != nil {
+		logrus.Errorf("Error: %v", err)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
 	// достаем clientID с контекста от middleware
 	clientID := c.GetString("clientID")
 
-	sig4, err := h.svc.Finalize(c, clientID, encrypted)
+	sig4, err := h.svc.Finalize(c, clientID, sig3, encrypted)
 	if err != nil {
 		if errors.Is(err, service.ErrReplayDetected) {
 			logrus.Errorf("Service error: %s", err.Error())

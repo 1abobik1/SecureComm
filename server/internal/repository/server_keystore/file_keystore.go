@@ -10,7 +10,7 @@ import (
 )
 
 // просто читает и парсит ключи, не генерирует их.
-type FileKeyStore struct {
+type fileKeyStore struct {
 	rsaPriv     *rsa.PrivateKey
 	rsaPubPEM   []byte
 	ecdsaPriv   *ecdsa.PrivateKey
@@ -18,7 +18,7 @@ type FileKeyStore struct {
 }
 
 // если хотя бы один файл отсутствует или не парсится — возвращает ошибку.
-func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string) (*FileKeyStore, error) {
+func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string) (*fileKeyStore, error) {
 	// Проверка и чтение RSA-приватного
 	privPEM, err := os.ReadFile(rsaPrivPath)
 	if err != nil {
@@ -92,7 +92,7 @@ func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string
 	ecdsaPubDER := ecdsaBlock.Bytes
 
 	// возвращаются файлы в формате DER
-	return &FileKeyStore{
+	return &fileKeyStore{
 		rsaPriv:     rsaPriv,
 		rsaPubPEM:   rsaPubDER,
 		ecdsaPriv:   ecdsaPriv,
@@ -101,6 +101,6 @@ func NewFileKeyStore(rsaPrivPath, rsaPubPath, ecdsaPrivPath, ecdsaPubPath string
 }
 
 // возвращает уже считанные ключи
-func (ks *FileKeyStore) GetServerKeys() (rsaPriv *rsa.PrivateKey, rsaPub []byte, ecdsaPriv *ecdsa.PrivateKey, ecdsaPub []byte) {
+func (ks *fileKeyStore) GetServerKeys() (rsaPriv *rsa.PrivateKey, rsaPub []byte, ecdsaPriv *ecdsa.PrivateKey, ecdsaPub []byte) {
 	return ks.rsaPriv, ks.rsaPubPEM, ks.ecdsaPriv, ks.ecdsaPubPEM
 }

@@ -1,14 +1,25 @@
 import {loadDERPub, loadECDSAPriv} from './src/utils/loadKeys';
 import {doFinalizeAPI, doInitAPI} from './src/http/http';
 import {performance} from 'perf_hooks';
+import {randomBytes} from "crypto";
+import {doSessionTest} from "./src/utils/session";
+
 
 const config = {
-    rsaPubPath: '../keys/client_rsa.pub',
-    ecdsaPubPath: '../keys/client_ecdsa.pub',
-    ecdsaPrivPath: '../keys/client_ecdsa.pem',
+    rsaPubPath: 'src/keys/client_rsa.pub',
+    ecdsaPubPath: 'src/keys/client_ecdsa.pub',
+    ecdsaPrivPath: 'src/keys/client_ecdsa.pem',
     initURL: 'http://localhost:8080/handshake/init',
-    finURL: 'http://localhost:8080/handshake/finalize'
+    finURL: 'http://localhost:8080/handshake/finalize',
+    sesURL: 'http://localhost:8080/session/test'
 };
+
+function generateBigMsg(sizeBytes: number): string {
+    const b = randomBytes(sizeBytes);
+    return b.toString('base64');
+}
+
+const MB10 = 10 * 1024 * 1024; // 10MB в байтах
 
 async function main() {
     try {
@@ -33,12 +44,22 @@ async function main() {
         const startFin = performance.now();
         const finResp = await doFinalizeAPI(
             config.finURL,
+            config.sesURL,
             initResp,
-            ecdsaPriv,
-            config.rsaPubPath // Путь к RSA публичному ключу для шифрования
+            ecdsaPriv
         );
         console.log('Finalize response:', finResp);
         console.log(`Finalize handshake time: ${performance.now() - startFin}ms`);
+
+        // Test session
+        const startSesTest = performance.now();
+        const testMessage = generateBigMsg(MB10);
+        console.log(`Testing session with ${MB10 / (1024 * 1024)}MB message...`);
+
+        await doSessionTest(finResp, testMessage);
+
+        console.log('Session test completed successfully');
+        console.log(`Session test time: ${performance.now() - startSesTest}ms`);
 
     } catch (err) {
         console.error('Error:', err instanceof Error ? err.message : String(err));

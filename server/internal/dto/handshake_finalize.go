@@ -13,6 +13,7 @@ package dto
 type HandshakeFinalizeReq struct {
     // Base64(RSA-OAEP(encrypted payload || signature3(DER)))
     Encrypted string `json:"encrypted"`
+    Signature3 string `json:"signature3"`
 }
 
 // HandshakeFinalizeResp описывает ответ на завершение Handshake.

@@ -1,3 +1,4 @@
-export interface IFinalizeRequest{
+export interface IFinalizeRequest {
     encrypted: string;
+    signature3: string;
 }

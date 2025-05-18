@@ -6,14 +6,14 @@ import {
     encryptRSA,
     generateRandomBytes,
     loadRSAPubDER,
-    parseECDSAPriv,
     signPayloadECDSA
 } from "../utils/scrypto";
 import {IInitRequest} from "../models/request/IInitRequest";
-import crypto from "node:crypto";
+import crypto, {createPublicKey} from "node:crypto";
 import {ec as EC} from 'elliptic';
 import {IFinalizeResponse} from "../models/response/IFinalizeResponse";
 import {IFinalizeRequest} from "../models/request/IFinalizeRequest";
+import {NewSession, Session} from "../utils/session";
 
 
 const verifyECDSASignature = (
@@ -56,21 +56,20 @@ export const doInitAPI = async (
     url: string,
     rsaPubPEM: Buffer,
     ecdsaPubPEM: Buffer,
-    ecdsaPrivPEM:  Buffer| Uint8Array
+    ecdsaPriv:  Buffer | Uint8Array
 ): Promise<IInitResponse> => {
     const ec = new EC('p256');
-    const ecdsaPriv = parseECDSAPriv(Buffer.from(ecdsaPrivPEM));
 
     // Конвертируем PEM в DER
     const rsaPubDER = loadRSAPubDER(rsaPubPEM);
-    const ecdsaPubDER = Buffer.from(ecdsaPriv.getPublic('hex'), 'hex');
+    const ecdsaPubDER = loadRSAPubDER(ecdsaPubPEM);
 
     // Генерируем nonce1
     const [nonce1b64, nonce1] = generateRandomBytes(8);
 
     // Подписываем payload
     const toSign1 = Buffer.concat([rsaPubDER, ecdsaPubDER, nonce1]);
-    const signature1 = signPayloadECDSA(ecdsaPriv, toSign1);
+    const signature1 = await signPayloadECDSA(ecdsaPriv, toSign1);
 
     // Формируем запрос
     const reqBody: IInitRequest = {
@@ -116,11 +115,16 @@ export const doInitAPI = async (
 
 export const doFinalizeAPI = async (
     url: string,
+    sessionTestURL:string,
     initResponse: IInitResponse,
-    ecdsaPrivPEM: Buffer | Uint8Array,
-    rsaPubPemPath: string
-): Promise<IFinalizeResponse> => {
-    const ecdsaPriv = parseECDSAPriv(Buffer.from(ecdsaPrivPEM));
+    ecdsaPriv: Buffer | Uint8Array,
+): Promise<Session> => {
+    const rsaPubDER = Buffer.from(initResponse.rsa_pub_server, 'base64');
+    const rsaPubKey = createPublicKey({
+        key: rsaPubDER,
+        format: 'der',
+        type: 'pkcs1'
+    });
     const nonce2 = Buffer.from(initResponse.nonce2, 'base64');
 
     // Генерируем ks и nonce3
@@ -129,15 +133,15 @@ export const doFinalizeAPI = async (
 
     // Подписываем payload
     const payload = Buffer.concat([ks, nonce3, nonce2]);
-    const signature3 = signPayloadECDSA(ecdsaPriv, payload);
+    const signature3 = await signPayloadECDSA(ecdsaPriv, payload);
     const sig3DER = Buffer.from(signature3, 'base64');
 
     // Шифруем данные
     const toEncrypt = Buffer.concat([payload, sig3DER]);
-    const encrypted = encryptRSA(rsaPubPemPath, toEncrypt);
+    const encrypted = encryptRSA(rsaPubKey, toEncrypt);
 
     // Формируем запрос
-    const reqBody: IFinalizeRequest = { encrypted };
+    const reqBody: IFinalizeRequest = { encrypted, signature3};
     const headers = { 'X-Client-ID': initResponse.client_id };
 
     const response = await postJSON(url, reqBody, headers);
@@ -151,11 +155,9 @@ export const doFinalizeAPI = async (
     const sig4DER = Buffer.from(finalizeResponse.signature4, 'base64');
     const sig4 = derToSignature(sig4DER);
 
+    const serverECDSAPubDER = Buffer.from(initResponse.ecdsa_pub_server, 'base64');
     const ec = new EC('p256');
-    const serverECDSAPub = ec.keyFromPublic(
-        Buffer.from(initResponse.ecdsa_pub_server, 'base64').toString('hex'),
-        'hex'
-    );
+    const serverECDSAPub = ec.keyFromPublic(serverECDSAPubDER.toString('hex'), 'hex');
 
     const verifyData = Buffer.concat([ks, nonce3, nonce2]);
     if (!verifyECDSASignature(serverECDSAPub, verifyData, sig4)) {
@@ -163,5 +165,5 @@ export const doFinalizeAPI = async (
     }
 
     console.log('Finalize OK, server signature verified');
-    return finalizeResponse;
+    return NewSession(initResponse.client_id, ecdsaPriv, ks, sessionTestURL)
 };

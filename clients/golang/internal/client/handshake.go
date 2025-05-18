@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
@@ -113,7 +114,7 @@ func DoInitAPI(url string, rsaPubDER, ecdsaPubDER []byte, ecdsaPriv *ecdsa.Priva
 	return &hr
 }
 
-func DoFinalizeAPI(url string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.PrivateKey) dto.FinalizeResp {
+func DoFinalizeAPI(url, sessionTestURL string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.PrivateKey) *Session {
 	// декодируем RSA публичный ключ сервера
 	rsaPubDER, err := base64.StdEncoding.DecodeString(initResp.RSAPubServer)
 	if err != nil {
@@ -132,10 +133,11 @@ func DoFinalizeAPI(url string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.Pri
 	}
 
 	// генерируем ks и nonce3
-	_, ks, err := GenerateRandBytes(32)
-	if err != nil {
+	ks := make([]byte, 32)
+	if _, err := rand.Read(ks); err != nil {
 		panic(err)
 	}
+
 	_, nonce3, err := GenerateRandBytes(8)
 	if err != nil {
 		panic(err)
@@ -147,21 +149,19 @@ func DoFinalizeAPI(url string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.Pri
 	if err != nil {
 		panic(err)
 	}
-	// декодируем base64 -> raw DER
-	sig3DER, err := base64.StdEncoding.DecodeString(sig3b64)
-	if err != nil {
-		panic(err)
-	}
 
 	//  шифруем payload || sig3DER
-	toEncrypt := append(payload, sig3DER...)
-	cipherB64, err := EncryptRSA(rsaPubSrv, toEncrypt)
+	// toEncrypt := append(payload, sig3DER...)
+	cipherB64, err := EncryptRSA(rsaPubSrv, payload)
 	if err != nil {
 		panic(err)
 	}
 
 	// отправляем Finalize-запрос
-	reqBody := dto.FinalizeReq{Encrypted: cipherB64}
+	reqBody := dto.FinalizeReq{
+		Encrypted:  cipherB64,
+		Signature3: sig3b64,
+	}
 	headers := map[string]string{"X-Client-ID": initResp.ClientID}
 	resp, err := PostJSON(url, reqBody, headers)
 	if err != nil {
@@ -208,5 +208,6 @@ func DoFinalizeAPI(url string, initResp *dto.HandshakeResp, ecdsaPriv *ecdsa.Pri
 	}
 
 	fmt.Println("Finalize OK, server signature verified")
-	return fr
+
+	return NewSession(initResp.ClientID, ecdsaPriv, ks, sessionTestURL)
 }

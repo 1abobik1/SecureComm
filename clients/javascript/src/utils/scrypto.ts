@@ -1,10 +1,7 @@
+import crypto, {createHash, KeyObject} from "crypto"; // Для кодирования/декодирования DER
 import {ec as EC} from 'elliptic';
-import crypto from "crypto";
-
-export interface DerSig {
-    R: bigint;
-    S: bigint;
-}
+// @ts-ignore
+import asn1 from 'asn1.js';
 
 export function derToSignature (der: Buffer): DerSig {
     let offset = 0;
@@ -31,46 +28,69 @@ export function derToSignature (der: Buffer): DerSig {
     return { R, S };
 }
 
-export function signatureToDer (sig: DerSig): Buffer  {
-    const rBytes = Buffer.from(sig.R.toString(16)).toString('hex');
-    const sBytes = Buffer.from(sig.S.toString(16)).toString('hex');
 
-    const rLength = rBytes.length;
-    const sLength = sBytes.length;
-
-    const totalLength = 2 + rLength + 2 + sLength;
-    const der = Buffer.alloc(2 + totalLength);
-
-    let offset = 0;
-    der[offset++] = 0x30; // SEQUENCE
-    der[offset++] = totalLength;
-    der[offset++] = 0x02; // INTEGER
-    der[offset++] = rLength;
-    Buffer.from(rBytes, 'hex').copy(der, offset);
-    offset += rLength;
-    der[offset++] = 0x02; // INTEGER
-    der[offset++] = sLength;
-    Buffer.from(sBytes, 'hex').copy(der, offset);
-
-    return der;
+// Определяем интерфейс для подписи
+export interface DerSig {
+    R: bigint;
+    S: bigint;
 }
 
-export const signPayloadECDSA = (privKey: EC.KeyPair, data: Buffer): string => {
-    const hash = crypto.createHash('sha256').update(data).digest('hex');
-    const signature = privKey.sign(hash, 'hex', { canonical: true });
-    const der = signatureToDer({
-        R: BigInt('0x' + signature.r.toString('hex')),
-        S: BigInt('0x' + signature.s.toString('hex'))
+// Функция для подписи данных с помощью ECDSA (аналог Go-версии)
+export async function signPayloadECDSA(
+    privateKeyPEM: string | Buffer | Uint8Array, // Приватный ключ в PEM-формате
+    data: Buffer,          // Данные для подписи
+): Promise<string> {
+    try {
+        // 1. Хешируем данные (SHA-256)
+        const hash = createHash('sha256').update(data).digest();
+
+        // 2. Создаем экземпляр ECDSA (например, для кривой P-256)
+        const ec = new EC('p256');
+        const key = ec.keyFromPrivate(privateKeyPEM, 'pem');
+
+        // 3. Подписываем хеш
+        const signature = key.sign(hash, { canonical: true });
+
+        // 4. Получаем R и S в виде bigint
+        const derSig: DerSig = {
+            R: BigInt(`0x${signature.r.toString(16)}`),
+            S: BigInt(`0x${signature.s.toString(16)}`),
+        };
+
+        // 5. Кодируем в DER-формат (ASN.1)
+        const derEncoded = encodeECDSASignature(derSig);
+
+        // 6. Возвращаем в base64
+        return derEncoded.toString('base64');
+    } catch (err) {
+        throw new Error(`ECDSA signing failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+}
+
+// Вспомогательная функция для кодирования подписи в DER (ASN.1)
+function encodeECDSASignature(sig: DerSig): Buffer {
+    const ECDSASignature = asn1.define('ECDSASignature', function (this: any) {
+        this.seq().obj(
+            this.key('R').int(), // Соответствует полю R в DerSig
+            this.key('S').int(), // Соответствует полю S в DerSig
+        );
     });
-    return der.toString('base64');
-};
+
+    return ECDSASignature.encode(
+        {
+            R: sig.R,
+            S: sig.S,
+        },
+        'der',
+    );
+}
 
 export const generateRandomBytes = (size: number): [string, Buffer] => {
     const buf = crypto.randomBytes(size);
     return [buf.toString('base64'), buf];
 };
 
-export function encryptRSA(pubKey: string, plaintext: Buffer): string {
+export function encryptRSA(pubKey: string| KeyObject, plaintext: Buffer): string {
     const encrypted = crypto.publicEncrypt(
         {
             key: pubKey,
@@ -82,10 +102,6 @@ export function encryptRSA(pubKey: string, plaintext: Buffer): string {
     return encrypted.toString('base64');
 }
 
-export function decodeBase64(s: string): Buffer {
-    return Buffer.from(s, 'base64');
-}
-
 export function loadRSAPubDER(pem: Buffer): Buffer {
     const publicKey = crypto.createPublicKey({
         key: pem,
@@ -95,19 +111,4 @@ export function loadRSAPubDER(pem: Buffer): Buffer {
 
     return publicKey.export({ format: 'der', type: 'spki' }) as Buffer;
 }
-
-const ec = new EC('p256');
-
-export function parseECDSAPriv(pem: Buffer): EC.KeyPair {
-    const key = crypto.createPrivateKey({
-        key: pem,
-        format: 'pem',
-        type: 'sec1',
-    });
-    const der = key.export({ format: 'der', type: 'sec1' }) as Buffer;
-    const privScalar = der.slice(-32);
-    return ec.keyFromPrivate(privScalar);
-}
-
-
 

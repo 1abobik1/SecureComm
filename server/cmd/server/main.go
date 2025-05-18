@@ -6,7 +6,7 @@ import (
 	"github.com/1abobik1/SecureComm/internal/handler"
 	"github.com/1abobik1/SecureComm/internal/middleware"
 	"github.com/1abobik1/SecureComm/internal/repository/client_keystore"
-	"github.com/1abobik1/SecureComm/internal/repository/client_noncestore"
+	"github.com/1abobik1/SecureComm/internal/repository/nonce_store"
 	"github.com/1abobik1/SecureComm/internal/repository/server_keystore"
 	"github.com/1abobik1/SecureComm/internal/repository/session_store"
 
@@ -19,9 +19,9 @@ import (
 	"github.com/didip/tollbooth/v7/limiter"
 	toll_gin "github.com/didip/tollbooth_gin"
 
+	_ "github.com/1abobik1/SecureComm/docs"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	_ "github.com/1abobik1/SecureComm/docs"
 )
 
 func init() {
@@ -59,12 +59,19 @@ func main() {
 	// redis для клиентских публичных ключей
 	clientKeys := client_keystore.NewRedisClientPubKeyStore(
 		cfg.Redis.ServerAddr,
+		cfg.Redis.SessionKeyTTL,
 	)
 
-	// redis для хранения nonces
-	nonceStore := client_noncestore.NewRedisNonceStore(
+	// redis для хранения nonces для handshake
+	hsNonceStore := nonce_store.NewRedisNonceStore(
 		cfg.Redis.ServerAddr,
-		cfg.Redis.NoncesTTL,
+		cfg.Redis.HandshakeNoncesTTL,
+	)
+
+	// redis для хранения nonces после handshake при обмене сообщениями
+	sesNonceStore := nonce_store.NewRedisSessionNonceStore(
+		cfg.Redis.ServerAddr,
+		cfg.Redis.SessionNoncesTTL,
 	)
 
 	// redis для хранения сессионных строк
@@ -74,10 +81,10 @@ func main() {
 	)
 
 	// сервисный слой
-	hsService := service.NewService(nonceStore, serverKeys, clientKeys, sessionStore)
+	hsService := service.NewService(hsNonceStore, sesNonceStore, serverKeys, clientKeys, sessionStore)
 
 	// хендлерный слой
-	hsHandler := handler.NewHandler(hsService)
+	h := handler.NewHandler(hsService)
 
 	// limiter для /handshake
 	hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
@@ -88,15 +95,28 @@ func main() {
 		"RemoteAddr",
 	})
 
+	sessionLimiter := tb.NewLimiter(cfg.SesLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.SesLimiter.TTL})
+	sessionLimiter.SetBurst(cfg.SesLimiter.Burst)
+	// limiter сначала пробует сделать лимит по client_id, если его нет в header, то по ip
+	sessionLimiter.SetIPLookups([]string{
+		"Header:X-Client-ID",
+		"RemoteAddr",
+	})
+
 	// маршрутизация
 	r := gin.Default()
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler)) // свагер документация
-	
-	hs := r.Group("/handshake")
+
+	hsGroup := r.Group("/handshake")
 	{
-		hs.POST("/init", toll_gin.LimitHandler(hsLimiter), hsHandler.Init)
-		hs.POST("/finalize", middleware.RequireClientID(), toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
+		hsGroup.POST("/init", toll_gin.LimitHandler(hsLimiter), h.Init)
+		hsGroup.POST("/finalize", middleware.RequireClientID(), toll_gin.LimitHandler(hsLimiter), h.Finalize)
+	}
+
+	sGroup := r.Group("/session")
+	{
+		sGroup.POST("/test", middleware.RequireClientID(), toll_gin.LimitHandler(sessionLimiter), h.SessionTester)
 	}
 
 	// запуск серва

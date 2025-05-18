@@ -1,4 +1,4 @@
-package client_noncestore
+package nonce_store
 
 import (
 	"context"

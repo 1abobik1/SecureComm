@@ -22,6 +22,8 @@ definitions:
       encrypted:
         description: Base64(RSA-OAEP(encrypted payload || signature3(DER)))
         type: string
+      signature3:
+        type: string
     type: object
   dto.HandshakeFinalizeResp:
     description: Сервер возвращает подпись h4 = SHA256(Ks || nonce3 || nonce2), подписанную
@@ -74,6 +76,19 @@ definitions:
       error:
         type: string
     type: object
+  dto.SessionMessageReq:
+    properties:
+      client_signature:
+        type: string
+      encrypted_message:
+        description: Base64(IV || ciphertext || tag)
+        type: string
+    type: object
+  dto.SessionMessageResp:
+    properties:
+      plaintext:
+        type: string
+    type: object
   dto.UnauthorizedErr:
     properties:
       error:
@@ -94,11 +109,11 @@ paths:
       description: |-
         ЗАПРОС ОТ КЛИЕНТА:
         Клиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.
-        Подробнее про поле encrypted...
+        и signature подписанный payload приватным ключем клиента
+        об отправляемых полях клиентом encrypted и signature3:
         Рандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload
         payload - это сумма байтов (ks || nonce3 || nonce2)
-        signature3 - это подписанный payload приватным ключем клиента
-        В конце encrypted это зашифрованные байты (payload || signature3(в DER формате))
+        signature3 - это подписанный payload приватным ключем ECDSA клиента
         encrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
 
         ОТВЕТ ОТ СЕРВЕРА:
@@ -198,4 +213,65 @@ paths:
       summary: Инициализация Handshake
       tags:
       - handshake
+  /session/test:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Клиент шлёт серверу зашифрованный пакет, объединяющий метаданные и payload данные:
+        timestamp - время отправки клиента в формате Unix миллисекунд (8 байт)
+        nonce - криптографически стойкое случайное значение (16 байт) для защиты от replay
+        IV - инициализационный вектор AES-CBC (16 байт)
+        ciphertext - результат AES-256-CBC шифрования сессионного payload'а + PKCS#7
+        tag - HMAC-SHA256 от (IV||ciphertext) для целостности данных
+
+        по итогу клиент отправляет:
+        encrypted_message = timestamp(8 byte) || nonce(16 byte) || IV(16 byte) || ciphertext || tag(32 byte)
+        client_signature = Base64(DER‑закодированная подпись SHA256(timestamp || nonce || IV || ciphertext || tag) приватным ECDSA‑ключом клиента
+
+        Сервер выполняет следующие шаги:
+        Декодирует Base64 и извлекает blob.
+        Извлекает timestamp и nonce из первых 24 байт и проверяет не использован ли nonce и если diff = (client_timestamp - server_timestamp) > допустимому окну(30секунд). если это так, то запрос отклоняется с ошибкой
+        Получает K_enc и K_mac по clientID, иначе 401 Unauthorized;
+        Проверяет HMAC-SHA256(iv||ciphertext), иначе 401 Unauthorized;
+        Расшифровывает AES-256-CBC, снимает PKCS#7 padding, иначе 400 Bad Request;
+        Возвращает JSON с plaintext - декодированный userData.
+      parameters:
+      - description: Client ID — идентификатор сессии
+        in: header
+        name: X-Client-ID
+        required: true
+        type: string
+      - description: Метаданные + зашифрованный payload в Base64
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SessionMessageReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Успешный ответ: plaintext'
+          schema:
+            $ref: '#/definitions/dto.SessionMessageResp'
+        "400":
+          description: Неверный формат Base64, устаревший timestamp или padding
+          schema:
+            $ref: '#/definitions/dto.BadRequestErr'
+        "401":
+          description: Session not found или проверка HMAC не прошла
+          schema:
+            $ref: '#/definitions/dto.UnauthorizedErr'
+        "409":
+          description: Повторное использование nonce (replay)
+          schema:
+            $ref: '#/definitions/dto.ConflictErr'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/dto.InternalServerErr'
+      summary: Тестовое расшифрование и проверка целостности сессионного сообщения
+      tags:
+      - session
 swagger: "2.0"

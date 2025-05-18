@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -14,15 +15,17 @@ import (
 type redisClientPubKeyStore struct {
 	redis *redis.Client
 	ctx   context.Context
+	ttl   time.Duration
 }
 
-func NewRedisClientPubKeyStore(addr string) *redisClientPubKeyStore {
+func NewRedisClientPubKeyStore(addr string, ttl   time.Duration) *redisClientPubKeyStore {
 	cli := redis.NewClient(&redis.Options{
 		Addr: addr,
 	})
 	return &redisClientPubKeyStore{
 		redis: cli,
 		ctx:   context.Background(),
+		ttl: ttl,
 	}
 }
 

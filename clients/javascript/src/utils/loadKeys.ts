@@ -1,6 +1,6 @@
-import fs from 'fs';
+import fs, {readFileSync} from 'fs';
+import {createPrivateKey} from 'crypto';
 import forge from 'node-forge';
-import crypto from 'crypto';
 
 export function loadDERPub(path: string): Buffer {
     const pem = fs.readFileSync(path, 'utf8');
@@ -9,8 +9,18 @@ export function loadDERPub(path: string): Buffer {
     return Buffer.from(der.getBytes(), 'binary');
 }
 
-export function loadECDSAPriv(path: string): Buffer {
-    const pem = fs.readFileSync(path, 'utf8');
-    const keyObject = crypto.createPrivateKey({ key: pem, format: 'pem', type: 'sec1' });
-    return keyObject.export({ format: 'der', type: 'sec1' }) as Buffer;
+export function loadECDSAPriv(path: string): Buffer{
+    const pemContent = readFileSync(path, 'utf8');
+
+    const key = createPrivateKey({
+        key: pemContent,
+        format: 'pem',
+    });
+    const derFormat = key.export({
+        format: 'der',
+        type: 'sec1'
+    });
+
+    // 4. Возвращаем как Buffer
+    return Buffer.from(derFormat);
 }
