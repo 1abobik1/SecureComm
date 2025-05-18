@@ -90,10 +90,10 @@ func (h *handler) Init(c *gin.Context) {
 // @description ЗАПРОС ОТ КЛИЕНТА:
 // @description Клиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.
 // @description и signature подписанный payload приватным ключем клиента
-// @description Подробнее про поле encrypted...
+// @description об отправляемых полях клиентом encrypted и signature3:
 // @description Рандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload
 // @description payload - это сумма байтов (ks || nonce3 || nonce2)
-// @description signature3 - это подписанный payload приватным ключем клиента
+// @description signature3 - это подписанный payload приватным ключем ECDSA клиента
 // @description encrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
 // @Description
 // @description ОТВЕТ ОТ СЕРВЕРА:

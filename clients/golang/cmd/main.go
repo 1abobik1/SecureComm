@@ -48,14 +48,14 @@ func main() {
 
 	// test сессии, путем отправки тестового сообщения
 	startSesTest := time.Now()
-	if err := session.DoSessionTest(generateBigMsg(mb25)); err != nil {
+	if err := session.DoSessionTest(generateBigMsg(mb10)); err != nil {
 		panic(err)
 	}
 	fmt.Println("\nSession test time:", time.Since(startSesTest))
 
 }
 
-const mb25 = 26214400
+const mb10 = 10485760
 
 func generateBigMsg(sizeBytes int) string {
 	b := make([]byte, sizeBytes)

@@ -22,6 +22,8 @@ definitions:
       encrypted:
         description: Base64(RSA-OAEP(encrypted payload || signature3(DER)))
         type: string
+      signature3:
+        type: string
     type: object
   dto.HandshakeFinalizeResp:
     description: Сервер возвращает подпись h4 = SHA256(Ks || nonce3 || nonce2), подписанную
@@ -107,11 +109,11 @@ paths:
       description: |-
         ЗАПРОС ОТ КЛИЕНТА:
         Клиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.
-        Подробнее про поле encrypted...
+        и signature подписанный payload приватным ключем клиента
+        об отправляемых полях клиентом encrypted и signature3:
         Рандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload
         payload - это сумма байтов (ks || nonce3 || nonce2)
-        signature3 - это подписанный payload приватным ключем клиента
-        В конце encrypted это зашифрованные байты (payload || signature3(в DER формате))
+        signature3 - это подписанный payload приватным ключем ECDSA клиента
         encrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
 
         ОТВЕТ ОТ СЕРВЕРА:
