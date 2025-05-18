@@ -1,5 +1,23 @@
-.idea
+# golang
 server/.env
 server/internal/keys/
 clients/golang/keys/
+clients/golang/internal/big_message/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDE settings
+.idea/
+
+# Virtual environment
+venv/
+
+#js
 clients/javascript/node_modules
