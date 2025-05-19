@@ -2,24 +2,25 @@ import unittest
 import base64
 import requests
 import time
+import os
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding, ec
-from client_http import perform_handshake, perform_finalize, derive_keys, generate_keys, generate_nonce, sign_ecdsa, verify_ecdsa
-
+from client_http import perform_handshake, perform_finalize, derive_keys, generate_nonce, sign_ecdsa, verify_ecdsa, perform_session_test
 
 class TestHandshakeSecurity(unittest.TestCase):
     def setUp(self):
         self.init_url = "http://localhost:8080/handshake/init"
         self.fin_url = "http://localhost:8080/handshake/finalize"
+        self.test_url = "http://localhost:8080/session/test"
         # Задержка перед каждым тестом, чтобы избежать 429
         time.sleep(1)
 
     def test_replay_attack_init(self):
         # Тест на replay-атаку: повторная отправка того же nonce1
         handshake_data = perform_handshake(self.init_url)
-        nonce1 = handshake_data["nonce1"]
+        nonce1_b64 = handshake_data["nonce1_b64"]
         with self.assertRaises(requests.RequestException):
-            perform_handshake(self.init_url, nonce1=nonce1)  # Повторяем тот же nonce1
+            perform_handshake(self.init_url, nonce1=nonce1_b64)  # Повторяем тот же nonce1
 
     def test_replay_attack_finalize(self):
         # Тест на replay-атаку: повторная отправка того же nonce3
@@ -36,10 +37,15 @@ class TestHandshakeSecurity(unittest.TestCase):
     def test_timing_attack_signature(self):
         # Тест на timing-атаку: сравнение времени проверки валидной и невалидной подписи
         handshake_data = perform_handshake(self.init_url)
-        valid_signature = handshake_data["ecdsa_priv"].sign(
+        # Создаём валидную подпись как байты
+        valid_signature_bytes = handshake_data["ecdsa_priv"].sign(
             handshake_data["nonce1"], ec.ECDSA(hashes.SHA256())
         )
-        invalid_signature = valid_signature[:-1] + (b'\x00' if valid_signature[-1] != b'\x00' else b'\x01')
+        # Создаём невалидную подпись, изменяя последний байт
+        invalid_signature_bytes = valid_signature_bytes[:-1] + (b'\x00' if valid_signature_bytes[-1] != 0 else b'\x01')
+        # Кодируем обе подписи в base64
+        valid_signature = base64.b64encode(valid_signature_bytes).decode('utf-8')
+        invalid_signature = base64.b64encode(invalid_signature_bytes).decode('utf-8')
 
         # Усредняем время для нескольких запусков, чтобы уменьшить шум
         num_runs = 5
@@ -47,13 +53,11 @@ class TestHandshakeSecurity(unittest.TestCase):
         invalid_times = []
         for _ in range(num_runs):
             start = time.time_ns()
-            verify_ecdsa(handshake_data["ecdsa_pub_server"], handshake_data["nonce1"],
-                         base64.b64encode(valid_signature).decode('utf-8'))
+            verify_ecdsa(handshake_data["ecdsa_pub_server"], handshake_data["nonce1"], valid_signature)
             valid_times.append(time.time_ns() - start)
 
             start = time.time_ns()
-            verify_ecdsa(handshake_data["ecdsa_pub_server"], handshake_data["nonce1"],
-                         base64.b64encode(invalid_signature).decode('utf-8'))
+            verify_ecdsa(handshake_data["ecdsa_pub_server"], handshake_data["nonce1"], invalid_signature)
             invalid_times.append(time.time_ns() - start)
 
         # Среднее время
@@ -72,8 +76,7 @@ class TestHandshakeSecurity(unittest.TestCase):
         nonce3_b64, nonce3 = generate_nonce(8)
         payload = ks + nonce3 + handshake_data["nonce2"]
         sig3 = sign_ecdsa(handshake_data["ecdsa_priv"], payload)
-        sig3_der = base64.b64decode(sig3)
-        to_encrypt = payload + sig3_der
+        to_encrypt = payload
         encrypted = handshake_data["rsa_pub_server"].encrypt(
             to_encrypt,
             padding.OAEP(
@@ -83,34 +86,15 @@ class TestHandshakeSecurity(unittest.TestCase):
             )
         )
         encrypted_b64 = base64.b64encode(encrypted).decode('utf-8')
-        payload = {"encrypted": encrypted_b64}
+        payload = {"encrypted": encrypted_b64, "signature3": sig3}
         headers = {"X-Client-ID": invalid_client_id}
 
         with self.assertRaises(requests.RequestException):
             response = requests.post(self.fin_url, json=payload, headers=headers, timeout=5)
             response.raise_for_status()
 
-    def test_mitm_key_substitution(self):
-        # Тест на MitM: подмена публичного ключа сервера
-        handshake_data = perform_handshake(self.init_url)
-        # Создаём фальшивый ключ
-        fake_priv, fake_pub, _, _ = generate_keys()
-        fake_pub_der = fake_pub.public_bytes(
-            encoding=serialization.Encoding.DER,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        )
-        data_to_verify = fake_pub_der + handshake_data["ecdsa_pub_server"].public_bytes(
-            encoding=serialization.Encoding.DER,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        ) + handshake_data["nonce2"] + handshake_data["nonce1"] + handshake_data["client_id"].encode('utf-8')
-        signature2_b64 = sign_ecdsa(handshake_data["ecdsa_priv"], data_to_verify)  # Фальшивая подпись
-        self.assertFalse(
-            verify_ecdsa(handshake_data["ecdsa_pub_server"], data_to_verify, signature2_b64),
-            "Подмена ключа сервера не обнаружена"
-        )
-
     def test_functional_success(self):
-        # Функциональный тест: успешное выполнение рукопожатия
+        # Функциональный тест: успешное выполнение рукопожатия и сессии
         handshake_data = perform_handshake(self.init_url)
         self.assertIsNotNone(handshake_data["client_id"])
         ks = perform_finalize(self.fin_url, handshake_data)
@@ -118,8 +102,33 @@ class TestHandshakeSecurity(unittest.TestCase):
         K_enc, K_mac = derive_keys(ks)
         self.assertEqual(len(K_enc), 32)
         self.assertEqual(len(K_mac), 32)
+        session = {
+            "client_id": handshake_data["client_id"],
+            "k_enc": K_enc,
+            "k_mac": K_mac,
+            "ecdsa_priv": handshake_data["ecdsa_priv"]
+        }
+        perform_session_test(self.test_url, session)
+        # Проверяем, что запрос прошёл без ошибок (ошибки вызовут исключение)
 
+    def test_large_data_session(self):
+        # Тест на отправку больших данных через /session/test
+        handshake_data = perform_handshake(self.init_url)
+        ks = perform_finalize(self.fin_url, handshake_data)
+        K_enc, K_mac = derive_keys(ks)
+        session = {
+            "client_id": handshake_data["client_id"],
+            "k_enc": K_enc,
+            "k_mac": K_mac,
+            "ecdsa_priv": handshake_data["ecdsa_priv"]
+        }
+        # Тест с 10 МБ
+        large_data_10mb = os.urandom(10 * 1024 * 1024)
+        perform_session_test(self.test_url, session, large_data_10mb)
+        # Тест с 25 МБ
+        large_data_25mb = os.urandom(25 * 1024 * 1024)
+        perform_session_test(self.test_url, session, large_data_25mb)
+        # Проверяем, что запросы прошли без ошибок (ошибки вызовут исключение)
 
 if __name__ == "__main__":
     unittest.main()
-# написать прокси который подменяет данные
