@@ -42,16 +42,16 @@ SESSION_LIMITER_EXP_TTL=1h # время когда данные о запрос�
 
 ```ini
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=dima15042004
+POSTGRES_PASSWORD=MyPASS
 POSTGRES_DB=auth-service
-STORAGE_PATH=postgres://postgres:dima15042004@auth_db:5432/auth-service?sslmode=disable
+STORAGE_PATH=postgres://postgres:MyPASS@auth_db:5432/auth-service?sslmode=disable
 HTTP_SERVER_ADDRESS=0.0.0.0:8081
 ACCESS_TOKEN_TTL=15m
 REFRESH_TOKEN_TTL=720h
 PUBLIC_KEY_PATH=public_key.pem
 PRIVATE_KEY_PATH=private_key.pem
 ```
-> **Важно:** Замените `dima15042004` на ваш реальный пароль от PostgreSQL.
+> **Важно:** Замените `MyPASS` на ваш реальный пароль от PostgreSQL.
 > После запуска сервер будет доступен по адресу `http://localhost:8081`
 
 ---
