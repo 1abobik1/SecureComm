@@ -35,6 +35,21 @@ func main() {
 		panic(err)
 	}
 
+	// ecdsaPubDER, _ = base64.StdEncoding.DecodeString("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPwTK236EM2+nbKB17ovnR4W39uUZqw92iZ07DHYEabgQH9++zCOhrFM7uBqsPLbaTQiFvshctgloL5EzuiGVXw==")
+	// //fmt.Println("\n\n\n",ecdsaPubDER, "\n\n\n")
+
+	// privDER, _ := base64.StdEncoding.DecodeString("MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgi4onhfDcFPzHisg68efQ4z41LrGnz0PjY0mJASpmizahRANCAAQ/BMrbfoQzb6dsoHXui+dHhbf25RmrD3aJnTsMdgRpuBAf377MI6GsUzu4Gqw8ttpNCIW+yFy2CWgvkTO6IZVf")
+	// ecdsaPriv, err = x509.ParseECPrivateKey(privDER)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// //fmt.Println("\n\n\n",ecdsaPriv, "\n\n\n")
+
+	// rsaPubDER, _ = base64.StdEncoding.DecodeString("MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAvDqpMOyYkR7MAeEW4+xo1r6D6CmYbGdCAKuTo/NVQEvSZtaTEUham3seaBuA/1x9tLz8i12YpK9BolWG4HCFKG47o5iG7LuIMQ8kiSo7j+pV46tc9wUcilNj092rNMrL/xie6kKMaj/VCZsz2viamKwjMZHUlyAA2c/4EhWYn639YwVQOFaHoU43eBXgwLxQIYcx1OxBV+yMgsMFH9qLJKXuA9EmU0fHDZmjSUwUMwjVMs/kwSBsvJNND/R5ybPkLZX1kV0WTLX8Fhgeb0n1L/DIvZodNVbD2ymo8inZ3DEa2ooo5c/vs02fLKdDsvsuSsdDmG+qYIJKzZTLFmtLgYGY5nKZg8VPPW2IgktiybmfjqmOX5WwOaM7p/eL9nQgI36dRJRY9sw78Cz7gv3Uorxakw9HFM0+Nl3yY057MMflH+rd/uzW/OYGEaIOKlKT8vA2cAdSpkPaxs3bNB5+HLQFft8ChD0Wl+MKJtsQcFqBqJz/VkaEzhJtVnj4+3lZAgMBAAE=")
+	// //fmt.Println("\n\n\n",rsaPubDER, "\n\n\n")
+	// rsaPubDER123, _ := base64.StdEncoding.DecodeString("MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgtfqBe45kU6WU6CLtvBHtn5Be2+fyihMu5lPydjmGRmyhRANCAARkcKjY4No6R2kLxeVC58byA+h4LnPdkksHKDWjJ58H7G+uPFMSpBGWk+YaKwId8Y9ajdz2ezlFb6IASefXfeJS")
+	// fmt.Println("\n\n\n",rsaPubDER123, "\n\n\n")
+
 	// Init
 	startInit := time.Now()
 	initResp := client.DoInitAPI(*initURL, rsaPubDER, ecdsaPubDER, ecdsaPriv)

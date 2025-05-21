@@ -7,24 +7,53 @@ services:
     networks:
       - app-network
 
-  http_api:
+  secure_comm_service:
     build:
-      context: ./server/
+      context: ./server/secure_comm_service
       dockerfile: Dockerfile
-    container_name: securecomm_http_api
+    container_name: secure_comm_service
     depends_on:
       - redis
     ports:
       - "8080:8080"
     env_file:
-      - ./server/.env
+      - ./server/secure_comm_service/.env
     volumes:
-      - ./server/internal/keys:/root/keys:rw
+      - ./server/secure_comm_service/internal/keys:/root/keys:rw
     restart: unless-stopped
     networks:
       - app-network
 
+  auth_db:
+    container_name: auth_db
+    image: postgres:14-alpine
+    env_file:
+      - ./server/auth_service/.env
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+      - ./server/auth_service/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    networks:
+      - app-network
+
+  auth-service:
+    container_name: auth_service
+    build:
+      context: ./server/auth_service
+      dockerfile: Dockerfile
+    env_file:
+      - ./server/auth_service/.env
+    depends_on:
+      - auth_db
+    ports:
+      - "8081:8081"
+    networks:
+      - app-network
+
+
 volumes:
+  auth_db_data:
   redis_data:
 
 networks:

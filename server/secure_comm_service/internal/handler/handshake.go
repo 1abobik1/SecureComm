@@ -97,7 +97,7 @@ func (h *handler) Init(c *gin.Context) {
 // @description encrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
 // @Description
 // @description ОТВЕТ ОТ СЕРВЕРА:
-// @description Сервер возвращает подпись h4 = SHA256(Ks || nonce3 || nonce2), подписанную приватным ECDSA‑ключом сервера и закодированную в Base64.
+// @description Сервер возвращает подпись signature4 = SHA256(Ks || nonce3 || nonce2), подписанную приватным ECDSA‑ключом сервера и закодированную в Base64.
 // @Tags         handshake
 // @Accept       json
 // @Produce      json

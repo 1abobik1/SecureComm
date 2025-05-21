@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-KEY_DIR=internal/keys
+KEY_DIR=server/secure_comm_service/internal/keys
 
 mkdir -p "$KEY_DIR"
 chmod 700 "$KEY_DIR"

@@ -17,6 +17,8 @@ import (
 type DerSig struct{ R, S *big.Int }
 
 func SignPayloadECDSA(priv *ecdsa.PrivateKey, data []byte) (string, error) {
+	//fmt.Println("\n\n\n",priv.X, "\n\n\n")
+
 	h := sha256.Sum256(data)
 	r, s, err := ecdsa.Sign(rand.Reader, priv, h[:])
 	if err != nil {

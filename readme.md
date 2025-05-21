@@ -1,8 +1,12 @@
 # Сервер запускать исключительно через Makefile!
 ## Запуск сервера:
-## 1)Перейти в папку server
-## 2) создать .env файл с такими значениями
-```
+## 1) Перейти в папку server
+## 2) Создать пару .env файлов с такими значениями
+
+### Настройка переменных окружения для secure_comm_service
+Создайте файл `.env` в корневой директории и добавьте следующие параметры, пример:
+
+```ini
 # http
 HTTP_SERVER_ADDRESS=0.0.0.0:8080
 
@@ -29,8 +33,51 @@ SESSION_LIMITER_RPC=20 # 20 запросов в секунду
 SESSION_LIMITER_BURST=25 # разрешается разом отправить 25 запросов, далее будет ограничение сверху(LIMITER_RPC=5)
 SESSION_LIMITER_EXP_TTL=1h # время когда данные о запросах клиента удалятся
 ```
-## 3) Вызвать команду ``` make up ```
-## Если нужно пересобрать сервер ``` make up-rebuild ```
+> После запуска сервер будет доступен по адресу `http://localhost:8081`
+
+---
+
+### Настройка переменных окружения для auth_service
+Создайте файл `.env` в корневой директории и добавьте следующие параметры, пример:
+
+```ini
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=dima15042004
+POSTGRES_DB=auth-service
+STORAGE_PATH=postgres://postgres:dima15042004@auth_db:5432/auth-service?sslmode=disable
+HTTP_SERVER_ADDRESS=0.0.0.0:8081
+QUOTA_SERVICE_URL=http://file-upload-service:8081
+ACCESS_TOKEN_TTL=15m
+REFRESH_TOKEN_TTL=720h
+PUBLIC_KEY_PATH=public_key.pem
+PRIVATE_KEY_PATH=private_key.pem
+```
+> **Важно:** Замените `dima15042004` на ваш реальный пароль от PostgreSQL.
+> После запуска сервер будет доступен по адресу `http://localhost:8081`
+
+---
+
+---
+
+## 1. Генерация ключей
+
+Если у вас нет ключей, выполните в терминале следующие команды:
+
+```bash
+# генерирует приватный ключ
+openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
+
+# генерирует публичный ключ
+openssl rsa -pubout -in private_key.pem -out public_key.pem
+```
+
+Поместите файлы `private_key.pem` и `public_key.pem` в папку auth_service. Далее !СКОПИРУЙТЕ! `public_key.pem` и поместите его в secure_comm_service.
+
+---
+
+
+## 3) Для запуска нужно вызвать команду ``` make up ```
+### Если нужно пересобрать сервер ``` make up-rebuild ```
 
 ## 4) Если нужно сгенерировать документацию, находясь в папке server, нужно выполнить команду ``` make gen-docs ``` 
-## Документация будет сгенерирована в папке server/docs
+### Документацию ищите в папках с _service в окончании, папка docs

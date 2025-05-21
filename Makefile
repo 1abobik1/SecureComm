@@ -1,7 +1,7 @@
 .PHONY: gen-keys build up up-rebuild
 
 gen-keys:
-	@bash scripts/generate_keys.sh
+	@bash server/secure_comm_service/scripts/generate_keys.sh
 
 build: gen-keys
 	docker-compose build
@@ -11,6 +11,3 @@ up: build
 
 up-rebuild: build
 	docker-compose up --build
-
-gen-docs:
-	swag init -g cmd/server/main.go -o docs

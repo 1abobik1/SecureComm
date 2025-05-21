@@ -44,6 +44,7 @@ func DoInitAPI(url string, rsaPubDER, ecdsaPubDER []byte, ecdsaPriv *ecdsa.Priva
 	if err != nil {
 		panic(err)
 	}
+	//fmt.Println("\n\n\n",toSign1, "\n\n\n")
 
 	// отправляем Init-запрос
 	reqBody := dto.HandshakeReq{

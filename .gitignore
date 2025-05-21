@@ -1,6 +1,15 @@
-# golang
-server/.env
-server/internal/keys/
+# golang secure_comm_service
+server/secure_comm_service/.env
+server/secure_comm_service/internal/keys/
+server/secure_comm_service/public_key.pem
+
+# golang auth_service
+server/auth_service/.env
+server/auth_service/public_key.pem
+server/auth_service/private_key.pem
+server/auth_service/internal/service/users/testkeys
+
+# client
 clients/golang/keys/
 clients/golang/internal/big_message/
 
@@ -18,4 +27,3 @@ build/
 
 # Virtual environment
 venv/
-
