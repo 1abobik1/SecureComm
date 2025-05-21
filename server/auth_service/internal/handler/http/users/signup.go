@@ -37,8 +37,8 @@ func (h *userHandler) SignUp(c *gin.Context) {
 
 	validate := validator.New()
 	if err := validate.Struct(authDTO); err != nil {
-		log.Printf("Error: %s, location: %s", ErrValidationEmailOrPassword, op)
-		c.JSON(http.StatusBadRequest, gin.H{"error": ErrValidationEmailOrPassword})
+		log.Printf("Error: %s, location: %s", ErrValidation, op)
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrValidation})
 		return
 	}
 

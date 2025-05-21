@@ -59,7 +59,7 @@ const docTemplate = `{
         },
         "/users/login": {
             "post": {
-                "description": "Логин по email и паролю.\nЕсли platform=\"tg-bot\", возвращаются в JSON:\n- access_token\n- refresh_token\n- ecdsa_priv_client (Base64)  // TODO: во внешнем API передавать в «голом» виде\n- ks (Base64)                // TODO: во внешнем API передавать в «голом» виде\nЕсли platform=\"web\", возвращаются:\n- access_token в JSON\n- ecdsa_priv_client (Base64)  // TODO: во внешнем API передавать зашифрованным паролем\n- ks (Base64)                // TODO: во внешнем API передавать зашифрованным паролем",
+                "description": "Логин по email и паролю.\nЕсли platform=\"tg-bot\", возвращаются в JSON:\n- access_token\n- refresh_token\n- ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде\n- ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде\nЕсли platform=\"web\", возвращаются:\n- access_token в JSON\n- ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем\n- ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем",
                 "consumes": [
                     "application/json"
                 ],
@@ -129,7 +129,7 @@ const docTemplate = `{
         },
         "/users/logout": {
             "post": {
-                "description": "Отзывает refresh-токен. Для web берёт токен из cookie, для tg-bot — из JSON body.",
+                "description": "Отзывает refresh-токен. Для web берёт токен из cookie, для tg-bot — из JSON body. Для веба не надо передавать refresh_token в json body",
                 "consumes": [
                     "application/json"
                 ],

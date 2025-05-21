@@ -81,12 +81,12 @@ paths:
         Если platform="tg-bot", возвращаются в JSON:
         - access_token
         - refresh_token
-        - ecdsa_priv_client (Base64)  // TODO: во внешнем API передавать в «голом» виде
-        - ks (Base64)                // TODO: во внешнем API передавать в «голом» виде
+        - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде
+        - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде
         Если platform="web", возвращаются:
         - access_token в JSON
-        - ecdsa_priv_client (Base64)  // TODO: во внешнем API передавать зашифрованным паролем
-        - ks (Base64)                // TODO: во внешнем API передавать зашифрованным паролем
+        - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем
+        - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем
       parameters:
       - description: Email, Password и Platform (web или tg-bot)
         in: body
@@ -133,7 +133,7 @@ paths:
       consumes:
       - application/json
       description: Отзывает refresh-токен. Для web берёт токен из cookie, для tg-bot
-        — из JSON body.
+        — из JSON body. Для веба не надо передавать refresh_token в json body
       parameters:
       - description: '{'
         in: body

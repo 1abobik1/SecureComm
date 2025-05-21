@@ -16,7 +16,7 @@ type LogoutRequest struct {
 
 // Logout
 // @Summary      Выход (logout)
-// @Description  Отзывает refresh-токен. Для web берёт токен из cookie, для tg-bot — из JSON body.
+// @Description  Отзывает refresh-токен. Для web берёт токен из cookie, для tg-bot — из JSON body. Для веба не надо передавать refresh_token в json body
 // @Tags         users
 // @Accept       json
 // @Produce      json

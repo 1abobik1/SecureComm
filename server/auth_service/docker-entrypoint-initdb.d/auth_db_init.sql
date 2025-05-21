@@ -17,11 +17,5 @@ CREATE TABLE IF NOT EXISTS refresh_token (
     CONSTRAINT unique_user_platform UNIQUE (user_id, platform)
 );
 
-CREATE TABLE IF NOT EXISTS user_keys (
-    user_id INT PRIMARY KEY,
-    user_key TEXT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE
-);
-
 CREATE INDEX idx_refresh_token_user_id ON refresh_token (user_id);
 CREATE INDEX idx_refresh_token_user_id_token ON refresh_token (user_id, token);

@@ -10,7 +10,7 @@
     "paths": {
         "/handshake/finalize": {
             "post": {
-                "description": "ЗАПРОС ОТ КЛИЕНТА:\nКлиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.\nи signature подписанный payload приватным ключем клиента\nоб отправляемых полях клиентом encrypted и signature3:\nРандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload\npayload - это сумма байтов (ks || nonce3 || nonce2)\nsignature3 - это подписанный payload приватным ключем ECDSA клиента\nencrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64\n\nОТВЕТ ОТ СЕРВЕРА:\nСервер возвращает подпись h4 = SHA256(Ks || nonce3 || nonce2), подписанную приватным ECDSA‑ключом сервера и закодированную в Base64.",
+                "description": "ЗАПРОС ОТ КЛИЕНТА:\nКлиент шлёт RSA-OAEP(encrypted payload), закодированный в Base64.\nи signature подписанный payload приватным ключем клиента\nоб отправляемых полях клиентом encrypted и signature3:\nРандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload\npayload - это сумма байтов (ks || nonce3 || nonce2)\nsignature3 - это подписанный payload приватным ключем ECDSA клиента в base64\nencrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64\n\nОТВЕТ ОТ СЕРВЕРА:\nСервер возвращает подпись signature4 = SHA256(Ks || nonce3 || nonce2), подписанную приватным ECDSA‑ключом сервера и закодированную в Base64.",
                 "consumes": [
                     "application/json"
                 ],

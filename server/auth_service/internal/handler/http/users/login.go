@@ -19,12 +19,12 @@ import (
 // @Description  Если platform="tg-bot", возвращаются в JSON:  
 // @Description    - access_token  
 // @Description    - refresh_token  
-// @Description    - ecdsa_priv_client (Base64)  // TODO: во внешнем API передавать в «голом» виде  
-// @Description    - ks (Base64)                // TODO: во внешнем API передавать в «голом» виде  
+// @Description    - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде  
+// @Description    - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде  
 // @Description  Если platform="web", возвращаются:  
 // @Description    - access_token в JSON  
-// @Description    - ecdsa_priv_client (Base64)  // TODO: во внешнем API передавать зашифрованным паролем  
-// @Description    - ks (Base64)                // TODO: во внешнем API передавать зашифрованным паролем  
+// @Description    - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем  
+// @Description    - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем  
 // @Tags         users
 // @Accept       json
 // @Produce      json
@@ -48,8 +48,8 @@ func (h *userHandler) Login(c *gin.Context) {
 
 	validate := validator.New()
 	if err := validate.Struct(authDTO); err != nil {
-		log.Printf("Error: %s, location: %s", ErrValidationEmailOrPassword, op)
-		c.JSON(http.StatusBadRequest, gin.H{"error": ErrValidationEmailOrPassword})
+		log.Printf("Error: %s, location: %s", ErrValidation, op)
+		c.JSON(http.StatusBadRequest, gin.H{"error": ErrValidation})
 		return
 	}
 

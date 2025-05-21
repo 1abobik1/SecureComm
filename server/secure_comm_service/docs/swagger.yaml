@@ -113,11 +113,11 @@ paths:
         об отправляемых полях клиентом encrypted и signature3:
         Рандомные 32 байта - это сессионная строка, назовем её ks, которая лежит в payload
         payload - это сумма байтов (ks || nonce3 || nonce2)
-        signature3 - это подписанный payload приватным ключем ECDSA клиента
+        signature3 - это подписанный payload приватным ключем ECDSA клиента в base64
         encrypted - зашифрован RSA-OAEP публичным ключем сервера, отдается в формате Base64
 
         ОТВЕТ ОТ СЕРВЕРА:
-        Сервер возвращает подпись h4 = SHA256(Ks || nonce3 || nonce2), подписанную приватным ECDSA‑ключом сервера и закодированную в Base64.
+        Сервер возвращает подпись signature4 = SHA256(Ks || nonce3 || nonce2), подписанную приватным ECDSA‑ключом сервера и закодированную в Base64.
       parameters:
       - default: f44f210d1234abcd...
         description: Client ID
