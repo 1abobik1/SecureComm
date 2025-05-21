@@ -1,0 +1,292 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/token/update": {
+            "post": {
+                "description": "Берёт refresh‑токен из Cookie и генерирует новые refresh- и access‑токены.\nКлиент должен вызывать этот endpoint при получении HTTP 401 (реализуйте interceptor на клиенте).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "token"
+                ],
+                "summary": "Обновление access‑токена",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cookie header, например: refresh_token=\u003ctoken\u003e",
+                        "name": "Cookie",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Новый access_token в теле",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized — отсутствует или невалидный refresh‑токен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/login": {
+            "post": {
+                "description": "Логин по email и паролю.\nЕсли platform=\"tg-bot\", возвращаются в JSON:\n- access_token\n- refresh_token\n- ecdsa_priv_client (Base64)  // TODO: во внешнем API передавать в «голом» виде\n- ks (Base64)                // TODO: во внешнем API передавать в «голом» виде\nЕсли platform=\"web\", возвращаются:\n- access_token в JSON\n- ecdsa_priv_client (Base64)  // TODO: во внешнем API передавать зашифрованным паролем\n- ks (Base64)                // TODO: во внешнем API передавать зашифрованным паролем",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Аутентификация пользователя",
+                "parameters": [
+                    {
+                        "description": "Email, Password и Platform (web или tg-bot)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.LogInDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request или неверная платформа",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "incorrect password or email",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "user not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/logout": {
+            "post": {
+                "description": "Отзывает refresh-токен. Для web берёт токен из cookie, для tg-bot — из JSON body.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Выход (logout)",
+                "parameters": [
+                    {
+                        "description": "{",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handlerUsers.LogoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "error — некорректный запрос или платформа не поддерживается",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized — отсутствует или невалидный токен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/signup": {
+            "post": {
+                "description": "Создаёт нового пользователя. В зависимости от platform возвращает refresh‑токен в cookie (для web) или в теле ответа (для tg-bot).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Регистрация пользователя",
+                "parameters": [
+                    {
+                        "description": "Email, Password и Platform (web или tg-bot)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.SignUpDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Для web: {access_token}, refresh в cookie; для tg-bot: {access_token, refresh_token}",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "error – некорректный запрос или платформа не поддерживается",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "error – пользователь с таким email уже существует",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.LogInDTO": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "platform"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "platform": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.SignUpDTO": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "platform"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "platform": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlerUsers.LogoutRequest": {
+            "type": "object",
+            "required": [
+                "platform"
+            ],
+            "properties": {
+                "platform": {
+                    "type": "string",
+                    "enum": [
+                        "web",
+                        "tg-bot"
+                    ]
+                },
+                "refresh_token": {
+                    "description": "для tg-bot",
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
