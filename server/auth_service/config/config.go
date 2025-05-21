@@ -17,7 +17,6 @@ type Config struct {
 	RefreshTokenTTL time.Duration `env:"REFRESH_TOKEN_TTL" env-required:"true"`
 	PublicKeyPath   string        `env:"PUBLIC_KEY_PATH" env-required:"true"`
 	PrivateKeyPath  string        `env:"PRIVATE_KEY_PATH" env-required:"true"`
-	QuotaServiceURL string        `env:"QUOTA_SERVICE_URL" env-required:"true"`
 }
 
 func MustLoad() *Config {
