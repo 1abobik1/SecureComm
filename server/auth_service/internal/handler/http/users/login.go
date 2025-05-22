@@ -34,7 +34,7 @@ import (
 // @Failure      403   {object}  map[string]string  "incorrect password or email"
 // @Failure      404   {object}  map[string]string  "user not found"
 // @Failure      500   {string}  string             "Internal Server Error"
-// @Router       /users/login [post]
+// @Router       /user/login [post]
 func (h *userHandler) Login(c *gin.Context) {
 	const op = "handler.http.users.Login"
 

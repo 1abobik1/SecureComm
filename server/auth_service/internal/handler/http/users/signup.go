@@ -23,7 +23,7 @@ import (
 // @Failure      400   {object}  map[string]string  "error – некорректный запрос или платформа не поддерживается"
 // @Failure      409   {object}  map[string]string  "error – пользователь с таким email уже существует"
 // @Failure      500   {object}  nil                "Internal Server Error"
-// @Router       /users/signup [post]
+// @Router       /user/signup [post]
 func (h *userHandler) SignUp(c *gin.Context) {
 	const op = "handler.http.users.SignUp"
 

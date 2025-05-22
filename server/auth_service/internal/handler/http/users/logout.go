@@ -28,7 +28,7 @@ type LogoutRequest struct {
 // @Failure      400   {object}  map[string]string          "error — некорректный запрос или платформа не поддерживается"
 // @Failure      401   {string}  string                     "Unauthorized — отсутствует или невалидный токен"
 // @Failure      500   {string}  string                     "Internal Server Error"
-// @Router       /users/logout [post]
+// @Router       /user/logout [post]
 func (h *userHandler) Logout(c *gin.Context) {
 	const op = "handler.http.users.Logout"
 
