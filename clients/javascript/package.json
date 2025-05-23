@@ -4,11 +4,11 @@
   "description": "js(ts) client",
   "license": "ISC",
   "author": "",
-  "type": "module",
-  "main": "dist/client.js",
+  "type": "commonjs",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/client.js",
+    "start": "node dist/index.js",
     "dev": "tsc --watch"
   },
   "dependencies": {
