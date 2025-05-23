@@ -7,8 +7,8 @@ import uuid
 
 class HandshakeUser(HttpUser):
     wait_time = between(3, 5)
-    # host = "http://localhost:8080"
-    host = "http://localhost:8081"  # Прокси
+    host = "http://localhost:8080"
+    # host = "http://localhost:8081"  # Прокси
 
     def on_start(self):
         self.client.headers.clear()
@@ -138,8 +138,8 @@ class HandshakeUser(HttpUser):
 
 class MobileUser(HttpUser):
     wait_time = between(3, 5)
-    # host = "http://localhost:8080"
-    host = "http://localhost:8081"  # Прокси
+    host = "http://localhost:8080"
+    # host = "http://localhost:8081"  # Прокси
 
     def on_start(self):
         self.client.headers["User-Agent"] = "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"
@@ -235,8 +235,8 @@ class MobileUser(HttpUser):
 
 class WebUser(HttpUser):
     wait_time = between(3, 5)
-    # host = "http://localhost:8080"
-    host = "http://localhost:8081"  # Прокси
+    host = "http://localhost:8080"
+    # host = "http://localhost:8081"  # Прокси
 
     def on_start(self):
         self.client.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -332,8 +332,8 @@ class WebUser(HttpUser):
 
 class PCUser(HttpUser):
     wait_time = between(3, 5)
-    # host = "http://localhost:8080"
-    host = "http://localhost:8081"  # Прокси
+    host = "http://localhost:8080"
+    # host = "http://localhost:8081"  # Прокси
 
     def on_start(self):
         self.client.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) DesktopApp/1.0"
