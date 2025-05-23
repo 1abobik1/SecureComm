@@ -1,4 +1,4 @@
-FROM golang:1.21.7-alpine AS builder
+FROM golang:1.23.1-alpine AS builder
 
 # Устанавливаем зависимости
 RUN apk add --no-cache git \
@@ -23,6 +23,7 @@ WORKDIR /root/
 COPY --from=builder /app/securecomm .
 
 COPY .env .
+COPY public_key.pem .
 
 EXPOSE 8080
 ENTRYPOINT ["./securecomm", "--config=.env"]

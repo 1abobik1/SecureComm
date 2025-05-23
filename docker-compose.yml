@@ -6,18 +6,25 @@ services:
       - "6379:6379"
     networks:
       - app-network
+    volumes:
+      - redis_data:/data
 
   secure_comm_service:
     build:
       context: ./server/secure_comm_service
       dockerfile: Dockerfile
     container_name: secure_comm_service
-    depends_on:
-      - redis
     ports:
       - "8080:8080"
     env_file:
       - ./server/secure_comm_service/.env
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./server/secure_comm_service/internal/keys:/root/keys:rw
     restart: unless-stopped
@@ -51,9 +58,29 @@ services:
     networks:
       - app-network
 
+  minio:
+    container_name: minio
+    image: minio/minio
+    env_file:
+      - ./server/secure_comm_service/.env
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9002:9002"
+    command: server /data --console-address ":9002"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 volumes:
   auth_db_data:
+  file_upload_db_data:
+  minio_data:
   redis_data:
 
 networks:

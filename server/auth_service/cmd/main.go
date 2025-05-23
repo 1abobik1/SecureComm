@@ -12,10 +12,9 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
+	_ "github.com/1abobik1/AuthService/docs"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	_ "github.com/1abobik1/AuthService/docs"
-
 )
 
 func main() {
@@ -45,6 +44,7 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+
 	r.POST("/user/signup", userHandler.SignUp)
 	r.POST("/user/login", userHandler.Login)
 	r.POST("/user/logout", userHandler.Logout)

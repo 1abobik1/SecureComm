@@ -10,11 +10,24 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type JWTConfig struct {
+	PublicKeyPath string `env:"JWT_PUBLIC_KEY_PATH" env-required:"true"`
+}
+
+type MinIoConfig struct {
+	Port         string        `env:"MINIO_PORT" env-required:"true"`
+	RootUser     string        `env:"MINIO_ROOT_USER" env-required:"true"`
+	RootPassword string        `env:"MINIO_ROOT_PASSWORD" env-required:"true"`
+	UseSSL       bool          `env:"MINIO_USE_SSL" env-required:"true"`
+	UrlTTL time.Duration `env:"MINIO_URL_LIFETIME" env-required:"true"`
+}
+
 type RedisConfig struct {
-	HandshakeNoncesTTL time.Duration `env:"REDIS_HANDSHAKE_NONCES_TTL" env-required:"true"`
-	SessionNoncesTTL   time.Duration `env:"REDIS_SESSION_NONCES_TTL" env-required:"true"`
-	SessionKeyTTL      time.Duration `env:"REDIS_SESSION_KEY_TTL" env-required:"true"`
-	ServerAddr         string        `env:"REDIS_SERVER_ADDRESS" env-required:"true"`
+	HandshakeNoncesTTL    time.Duration `env:"REDIS_HANDSHAKE_NONCES_TTL" env-required:"true"`
+	SessionNoncesTTL      time.Duration `env:"REDIS_SESSION_NONCES_TTL" env-required:"true"`
+	SessionKeyTTL         time.Duration `env:"REDIS_SESSION_KEY_TTL" env-required:"true"`
+	MinioUrlTTL time.Duration `env:"REDIS_MINIO_URL_TTL" env-required:"true"`
+	ServerAddr            string        `env:"REDIS_SERVER_ADDRESS" env-required:"true"`
 }
 
 type ServKeysConfig struct {
@@ -42,6 +55,8 @@ type SessionLimiter struct {
 }
 
 type Config struct {
+	JWT        JWTConfig
+	Minio      MinIoConfig
 	Redis      RedisConfig
 	ServKeys   ServKeysConfig
 	HTTPServ   HTTPServConfig

@@ -12,7 +12,6 @@ import (
 // Структура данных для хранения пользовательских claims
 type customClaims struct {
 	UserID int `json:"user_id"`
-	UserKey string `json:"user_key"`
 	jwt.RegisteredClaims
 }
 

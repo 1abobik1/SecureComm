@@ -1,4 +1,4 @@
-package service
+package handshake_service
 
 import (
 	"context"
@@ -36,16 +36,16 @@ type ServerKeyStore interface {
 
 // хранит и отдает публичные ключи пользователей в REDIS
 type ClientPubKeyStore interface {
-	// сохраняет публичные ключи клиента по clientID
-	SaveClientKeys(ctx context.Context, clientID string, rsaPubDER, ecdsaPubDER []byte) error
-	GetClientRSAPub(ctx context.Context, clientID string) ([]byte, error)
-	GetClientECDSAPub(ctx context.Context, clientID string) (*ecdsa.PublicKey, error)
+	// сохраняет публичные ключи клиента по userID
+	SaveClientKeys(ctx context.Context, userID string, rsaPubDER, ecdsaPubDER []byte) error
+	GetClientRSAPub(ctx context.Context, userID string) ([]byte, error)
+	GetClientECDSAPub(ctx context.Context, userID string) (*ecdsa.PublicKey, error)
 }
 
 type SessionStore interface {
-	SaveSessionKeys(ctx context.Context, clientID string, kEnc, kMac []byte) error
-	GetSessionKeys(ctx context.Context, clientID string) (kEnc, kMac []byte, err error)
-	DeleteSession(ctx context.Context, clientID string) error
+	SaveSessionKeys(ctx context.Context, userID string, kEnc, kMac []byte) error
+	GetSessionKeys(ctx context.Context, userID string) (kEnc, kMac []byte, err error)
+	DeleteSession(ctx context.Context, userID string) error
 }
 
 type service struct {

@@ -14,9 +14,9 @@ type redisSessionStore struct {
 	ttl time.Duration
 }
 
-func NewRedisSessionStore(addr string, ttl time.Duration) *redisSessionStore {
+func NewRedisSessionStore(rClient *redis.Client, ttl time.Duration) *redisSessionStore {
 	return &redisSessionStore{
-		cli: redis.NewClient(&redis.Options{Addr: addr}),
+		cli: rClient,
 		ctx: context.Background(),
 		ttl: ttl,
 	}

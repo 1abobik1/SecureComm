@@ -18,12 +18,9 @@ type redisClientPubKeyStore struct {
 	ttl   time.Duration
 }
 
-func NewRedisClientPubKeyStore(addr string, ttl   time.Duration) *redisClientPubKeyStore {
-	cli := redis.NewClient(&redis.Options{
-		Addr: addr,
-	})
+func NewRedisClientPubKeyStore(rClient *redis.Client, ttl   time.Duration) *redisClientPubKeyStore {
 	return &redisClientPubKeyStore{
-		redis: cli,
+		redis: rClient,
 		ctx:   context.Background(),
 		ttl: ttl,
 	}

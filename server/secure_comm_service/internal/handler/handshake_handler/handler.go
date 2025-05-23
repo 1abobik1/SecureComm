@@ -1,4 +1,4 @@
-package handler
+package handshake_handler
 
 import "context"
 

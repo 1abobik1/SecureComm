@@ -1,4 +1,4 @@
-package service
+package handshake_service
 
 import (
 	"context"

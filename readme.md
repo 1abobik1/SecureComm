@@ -13,8 +13,9 @@ HTTP_SERVER_ADDRESS=0.0.0.0:8080
 # redis
 REDIS_SERVER_ADDRESS=redis:6379
 REDIS_HANDSHAKE_NONCES_TTL=10m
-REDIS_SESSION_NONCES_TTL=1m
-REDIS_SESSION_KEY_TTL=20s
+REDIS_SESSION_NONCES_TTL=20s
+REDIS_SESSION_KEY_TTL=50m
+REDIS_MINIO_URL_TTL=8h
 
 # пути до серверных ключей внутри докера
 KEY_DIR_PATH=/root/keys
@@ -32,6 +33,16 @@ HANDSHAKE_LIMITER_EXP_TTL=1h # время когда данные о запро�
 SESSION_LIMITER_RPC=20 # 20 запросов в секунду
 SESSION_LIMITER_BURST=25 # разрешается разом отправить 25 запросов, далее будет ограничение сверху(LIMITER_RPC=5)
 SESSION_LIMITER_EXP_TTL=1h # время когда данные о запросах клиента удалятся
+
+#JWT параметры
+JWT_PUBLIC_KEY_PATH=public_key.pem
+
+#Minio параметры
+MINIO_PORT=localhost:9000
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=minioadmin
+MINIO_USE_SSL=false
+MINIO_URL_LIFETIME=8h
 ```
 > После запуска сервер будет доступен по адресу `http://localhost:8080`
 

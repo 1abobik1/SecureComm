@@ -1,7 +1,7 @@
 package client
 
 import (
-	"crypto/aes"
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
@@ -14,11 +14,11 @@ import (
 	"math/big"
 )
 
+// DerSig используется для разбора ECDSA-DER подписи
 type DerSig struct{ R, S *big.Int }
 
+// Новые SignPayloadECDSA и mustSignPayloadECDSA
 func SignPayloadECDSA(priv *ecdsa.PrivateKey, data []byte) (string, error) {
-	//fmt.Println("\n\n\n",priv.X, "\n\n\n")
-
 	h := sha256.Sum256(data)
 	r, s, err := ecdsa.Sign(rand.Reader, priv, h[:])
 	if err != nil {
@@ -76,10 +76,20 @@ func ParseECDSAPriv(pemBytes []byte) (*ecdsa.PrivateKey, error) {
 	return nil, fmt.Errorf("unable to parse ECDSA private key")
 }
 
-func pkcs7Pad(data []byte) []byte {
-	pad := aes.BlockSize - len(data)%aes.BlockSize
-	for i := 0; i < pad; i++ {
-		data = append(data, byte(pad))
+// pkcs7Pad добавляет PKCS#7-паддинг до длины кратной blockSize.
+func Pkcs7Pad(data []byte, blockSize int) []byte {
+	padLen := blockSize - (len(data) % blockSize)
+	if padLen == 0 {
+		padLen = blockSize
 	}
-	return data
+	padding := bytes.Repeat([]byte{byte(padLen)}, padLen)
+	return append(data, padding...)
+}
+
+func mustSignPayloadECDSA(priv *ecdsa.PrivateKey, data []byte) string {
+	sig, err := SignPayloadECDSA(priv, data)
+	if err != nil {
+		panic(err)
+	}
+	return sig
 }

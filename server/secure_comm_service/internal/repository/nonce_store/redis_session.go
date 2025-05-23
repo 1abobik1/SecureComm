@@ -18,9 +18,9 @@ type redisSessionNonceStore struct {
 }
 
 // NewRedisSessionNonceStore создаёт стор с префиксом и TTL.
-func NewRedisSessionNonceStore(addr string, ttl time.Duration) *redisSessionNonceStore {
+func NewRedisSessionNonceStore(rClient *redis.Client, ttl time.Duration) *redisSessionNonceStore {
 	return &redisSessionNonceStore{
-		cli:     redis.NewClient(&redis.Options{Addr: addr}),
+		cli:     rClient,
 		ctx:     context.Background(),
 		ttl:     ttl,
 		keyPref: "sessnonce:", // префикс

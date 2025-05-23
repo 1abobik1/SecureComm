@@ -9,7 +9,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/sirupsen/logrus"
 )
 
 var ErrTokenExpired = errors.New("token is expired")
@@ -24,6 +25,7 @@ func JWTMiddleware(publicKeyPath string) gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			logrus.Error("Error auth header: invalid token format")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token format"})
 			return
 		}
@@ -31,6 +33,7 @@ func JWTMiddleware(publicKeyPath string) gin.HandlerFunc {
 
 		claims, err := ValidateToken(tokenString, publicKeyPath)
 		if err != nil {
+			logrus.Errorf("Error ValidateToken: %v", err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
 			return
 		}
@@ -73,10 +76,12 @@ func ValidateToken(tokenString, publicKeyPath string) (jwt.MapClaims, error) {
 func getPublicKey(file string) (*rsa.PublicKey, error) {
 	publicKeyData, err := os.ReadFile(file)
 	if err != nil {
+		logrus.Error("Error to parse jwt pub key")
 		return nil, err
 	}
 	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyData)
 	if err != nil {
+		logrus.Error("Error to parse ParseRSAPublicKeyFromPEM func")
 		return nil, err
 	}
 

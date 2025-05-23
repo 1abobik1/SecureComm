@@ -18,9 +18,9 @@ type redisNonceStore struct {
 }
 
 // addr — адрес redis, ttl — время хранения nonce
-func NewRedisNonceStore(addr string, ttl time.Duration) *redisNonceStore {
+func NewRedisNonceStore(rClient *redis.Client, ttl time.Duration) *redisNonceStore {
 	return &redisNonceStore{
-		cli:     redis.NewClient(&redis.Options{Addr: addr}),
+		cli:     rClient,
 		ctx:     context.Background(),
 		ttl:     ttl,
 		keyPref: "nonce:",
