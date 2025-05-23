@@ -44,7 +44,7 @@ services:
     networks:
       - app-network
 
-  auth-service:
+  auth_service:
     container_name: auth_service
     build:
       context: ./server/auth_service

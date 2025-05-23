@@ -15,16 +15,16 @@ import (
 
 // Login
 // @Summary      Аутентификация пользователя
-// @Description  Логин по email и паролю.  
-// @Description  Если platform="tg-bot", возвращаются в JSON:  
-// @Description    - access_token  
-// @Description    - refresh_token  
-// @Description    - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде  
-// @Description    - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде  
-// @Description  Если platform="web", возвращаются:  
-// @Description    - access_token в JSON  
-// @Description    - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем  
-// @Description    - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем  
+// @Description  Логин по email и паролю.
+// @Description  Если platform="tg-bot", возвращаются в JSON:
+// @Description    - access_token
+// @Description    - refresh_token
+// @Description    - ecdsa_priv_client (Base64)
+// @Description    - ks (Base64)
+// @Description  Если platform="web", возвращаются:
+// @Description    - access_token в JSON
+// @Description    - ecdsa_priv_client (Base64)
+// @Description    - ks (Base64)
 // @Tags         users
 // @Accept       json
 // @Produce      json
@@ -76,32 +76,33 @@ func (h *userHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// TODO: сделать внешнее апи, которое пытается получить эти данные передаются в голом виде
-	// (также в другом сервисе будет авторизация через jwt, так что в хедере надо передавать этот access токен)
-	ECDSAPrivKeyb64_tg_bot := "ECDSAPrivKeyb64"
-	KSb64_tg_bot := "KSb64"
-
-	// TODO: сделать внешнее апи, которое пытается получить эти данные передаются в зашифрованном виде(шифром будет пароль, поэтому нужно еще передавать голый пароль клиента)
-	// (также в другом сервисе будет авторизация через jwt, так что в хедере надо передавать этот access токен)
-	ECDSAPrivKeyb64_WEB := "ECDSAPrivKeyb64"
-	KSb64_WEB := "KSb64"
-
-	// для тг бота
 	if authDTO.Platform == "tg-bot" {
+		// если клиент зашел с тг бота
+		kEncB64, kMacB64, err := h.tgClient.GetClientKS(c, accessToken)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "error in receiving session key and ecdsa"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
-			"access_token": accessToken,
-			"refresh_token": refreshToken,
-			"ecdsa_priv_client": ECDSAPrivKeyb64_tg_bot,
-			"ks": KSb64_tg_bot,
+			"access_token":      accessToken,
+			"refresh_token":     refreshToken,
+			"k_enc":                kEncB64,
+			"k_mac":                kMacB64,
 		})
 	} else {
-		// для web
+		// если клиент зашел с web сайта, ks передается в зашифрованной ввиде паролем пользователя
+		ksB64, err := h.webClient.GetClientKS(c, authDTO.Password, accessToken)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "error in receiving session key and ecdsa"})
+			return
+		}
+
 		utils.SetRefreshTokenCookie(c, refreshToken)
 
 		c.JSON(http.StatusOK, gin.H{
-			"access_token": accessToken,
-			"ecdsa_priv_client":ECDSAPrivKeyb64_WEB, 
-			"ks": KSb64_WEB,
+			"access_token":      accessToken,
+			"ks":                ksB64,
 		})
 	}
 }

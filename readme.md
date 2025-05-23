@@ -14,7 +14,8 @@ HTTP_SERVER_ADDRESS=0.0.0.0:8080
 REDIS_SERVER_ADDRESS=redis:6379
 REDIS_HANDSHAKE_NONCES_TTL=10m
 REDIS_SESSION_NONCES_TTL=20s
-REDIS_SESSION_KEY_TTL=50m
+REDIS_SESSION_KEY_TTL=8760h     # без лимита(условно)
+REDIS_CLIENT_PUB_KEYS_TTL=8760h # без лимита(условно)
 REDIS_MINIO_URL_TTL=8h
 
 # пути до серверных ключей внутри докера
@@ -53,14 +54,16 @@ MINIO_URL_LIFETIME=8h
 
 ```ini
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=MyPASS
+POSTGRES_PASSWORD=dima15042004
 POSTGRES_DB=auth-service
-STORAGE_PATH=postgres://postgres:MyPASS@auth_db:5432/auth-service?sslmode=disable
+STORAGE_PATH=postgres://postgres:dima15042004@auth_db:5432/auth-service?sslmode=disable
 HTTP_SERVER_ADDRESS=0.0.0.0:8081
 ACCESS_TOKEN_TTL=15m
 REFRESH_TOKEN_TTL=720h
 PUBLIC_KEY_PATH=public_key.pem
 PRIVATE_KEY_PATH=private_key.pem
+EXTERNAL_WEB_CLIENT=http://secure-comm-service:8080/web/ks
+EXTERNAL_TG_CLIENT=http://secure-comm-service:8080/tg-bot/ks
 ```
 > **Важно:** Замените `MyPASS` на ваш реальный пароль от PostgreSQL.
 > После запуска сервер будет доступен по адресу `http://localhost:8081`

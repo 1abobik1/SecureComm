@@ -1,9 +1,11 @@
 package main
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/1abobik1/AuthService/config"
+	"github.com/1abobik1/AuthService/internal/external_api"
 	handlerToken "github.com/1abobik1/AuthService/internal/handler/http/token"
 	handlerUsers "github.com/1abobik1/AuthService/internal/handler/http/users"
 	serviceToken "github.com/1abobik1/AuthService/internal/service/token"
@@ -26,7 +28,15 @@ func main() {
 	}
 
 	userService := serviceUsers.NewUserService(postgresStorage, *cfg)
-	userHandler := handlerUsers.NewUserHandler(userService)
+
+	// подключение клиента для внешних апи
+	httpClient := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+	tgClient := external_api.NewTGClient(cfg.ExternalTGClient, httpClient)
+	webClient := external_api.NewWEBClient(cfg.ExternalWebClient, httpClient)
+
+	userHandler := handlerUsers.NewUserHandler(userService, tgClient, webClient)
 
 	tokenService := serviceToken.NewTokenService(postgresStorage, *cfg)
 	tokenHandler := handlerToken.NewTokenHandler(tokenService)
