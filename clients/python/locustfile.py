@@ -1,5 +1,5 @@
 from locust import HttpUser, task, between
-from client_http import perform_handshake, perform_finalize
+from client_http import perform_handshake, perform_finalize, derive_keys, perform_session_test
 import time
 import os
 import random
@@ -7,8 +7,8 @@ import uuid
 
 class HandshakeUser(HttpUser):
     wait_time = between(3, 5)
-    # host = "http://localhost:8080"
-    host = "http://localhost:8081" # Прокси
+    host = "http://localhost:8080"
+    # host = "http://localhost:8081"  # Прокси
 
     def on_start(self):
         self.client.headers.clear()
@@ -89,10 +89,57 @@ class HandshakeUser(HttpUser):
                 url=f"{self.host}/handshake/finalize"
             )
 
+    @task
+    def test_session(self):
+        if not hasattr(self, 'handshake_data') or not hasattr(self, 'client_id'):
+            return
+        try:
+            start = time.time()
+            ks = perform_finalize(f"{self.host}/handshake/finalize", self.handshake_data)
+            K_enc, K_mac = derive_keys(ks)
+            session = {
+                "client_id": self.client_id,
+                "k_enc": K_enc,
+                "k_mac": K_mac,
+                "ecdsa_priv": self.handshake_data["ecdsa_priv"]
+            }
+            large_data_10mb = os.urandom(10 * 1024 * 1024)
+            perform_session_test(f"{self.host}/session/test", session, large_data_10mb)
+            response_time = (time.time() - start) * 1000
+            self.environment.events.request.fire(
+                request_type="POST",
+                name="/session/test",
+                response_time=response_time,
+                response_length=len(large_data_10mb),
+                response=None,
+                context={},
+                exception=None,
+                start_time=start,
+                url=f"{self.host}/session/test"
+            )
+            # Перезапускаем рукопожатие для следующей итерации
+            nonce = os.urandom(8)
+            self.handshake_data = perform_handshake(f"{self.host}/handshake/init", nonce1=nonce)
+            self.client_id = self.handshake_data["client_id"]
+            self.client.headers["X-Client-ID"] = self.client_id
+        except Exception as e:
+            print(f"Ошибка test_session (HandshakeUser): {str(e)}")
+            self.environment.events.request.fire(
+                request_type="POST",
+                name="/session/test",
+                response_time=0,
+                response_length=0,
+                response=None,
+                context={},
+                exception=e,
+                start_time=time.time(),
+                url=f"{self.host}/session/test"
+            )
+
 class MobileUser(HttpUser):
     wait_time = between(3, 5)
-    # host = "http://localhost:8080"
-    host = "http://localhost:8081"  # Прокси
+    host = "http://localhost:8080"
+    # host = "http://localhost:8081"  # Прокси
 
     def on_start(self):
         self.client.headers["User-Agent"] = "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1"
@@ -139,10 +186,57 @@ class MobileUser(HttpUser):
                 url=f"{self.host}/handshake/finalize"
             )
 
+    @task
+    def test_session(self):
+        if not hasattr(self, 'handshake_data') or not hasattr(self, 'client_id'):
+            return
+        try:
+            start = time.time()
+            ks = perform_finalize(f"{self.host}/handshake/finalize", self.handshake_data)
+            K_enc, K_mac = derive_keys(ks)
+            session = {
+                "client_id": self.client_id,
+                "k_enc": K_enc,
+                "k_mac": K_mac,
+                "ecdsa_priv": self.handshake_data["ecdsa_priv"]
+            }
+            large_data_10mb = os.urandom(10 * 1024 * 1024)
+            perform_session_test(f"{self.host}/session/test", session, large_data_10mb)
+            response_time = (time.time() - start) * 1000
+            self.environment.events.request.fire(
+                request_type="POST",
+                name="/session/test_mobile",
+                response_time=response_time,
+                response_length=len(large_data_10mb),
+                response=None,
+                context={},
+                exception=None,
+                start_time=start,
+                url=f"{self.host}/session/test"
+            )
+            # Перезапускаем рукопожатие для следующей итерации
+            nonce = os.urandom(8)
+            self.handshake_data = perform_handshake(f"{self.host}/handshake/init", nonce1=nonce)
+            self.client_id = self.handshake_data["client_id"]
+            self.client.headers["X-Client-ID"] = self.client_id
+        except Exception as e:
+            print(f"Ошибка test_session (MobileUser): {str(e)}")
+            self.environment.events.request.fire(
+                request_type="POST",
+                name="/session/test_mobile",
+                response_time=0,
+                response_length=0,
+                response=None,
+                context={},
+                exception=e,
+                start_time=time.time(),
+                url=f"{self.host}/session/test"
+            )
+
 class WebUser(HttpUser):
     wait_time = between(3, 5)
-    # host = "http://localhost:8080"
-    host = "http://localhost:8081"  # Прокси
+    host = "http://localhost:8080"
+    # host = "http://localhost:8081"  # Прокси
 
     def on_start(self):
         self.client.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -189,10 +283,57 @@ class WebUser(HttpUser):
                 url=f"{self.host}/handshake/finalize"
             )
 
+    @task
+    def test_session(self):
+        if not hasattr(self, 'handshake_data') or not hasattr(self, 'client_id'):
+            return
+        try:
+            start = time.time()
+            ks = perform_finalize(f"{self.host}/handshake/finalize", self.handshake_data)
+            K_enc, K_mac = derive_keys(ks)
+            session = {
+                "client_id": self.client_id,
+                "k_enc": K_enc,
+                "k_mac": K_mac,
+                "ecdsa_priv": self.handshake_data["ecdsa_priv"]
+            }
+            large_data_10mb = os.urandom(10 * 1024 * 1024)
+            perform_session_test(f"{self.host}/session/test", session, large_data_10mb)
+            response_time = (time.time() - start) * 1000
+            self.environment.events.request.fire(
+                request_type="POST",
+                name="/session/test_web",
+                response_time=response_time,
+                response_length=len(large_data_10mb),
+                response=None,
+                context={},
+                exception=None,
+                start_time=start,
+                url=f"{self.host}/session/test"
+            )
+            # Перезапускаем рукопожатие для следующей итерации
+            nonce = os.urandom(8)
+            self.handshake_data = perform_handshake(f"{self.host}/handshake/init", nonce1=nonce)
+            self.client_id = self.handshake_data["client_id"]
+            self.client.headers["X-Client-ID"] = self.client_id
+        except Exception as e:
+            print(f"Ошибка test_session (WebUser): {str(e)}")
+            self.environment.events.request.fire(
+                request_type="POST",
+                name="/session/test_web",
+                response_time=0,
+                response_length=0,
+                response=None,
+                context={},
+                exception=e,
+                start_time=time.time(),
+                url=f"{self.host}/session/test"
+            )
+
 class PCUser(HttpUser):
     wait_time = between(3, 5)
-    # host = "http://localhost:8080"
-    host = "http://localhost:8081"  # Прокси
+    host = "http://localhost:8080"
+    # host = "http://localhost:8081"  # Прокси
 
     def on_start(self):
         self.client.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) DesktopApp/1.0"
@@ -237,4 +378,51 @@ class PCUser(HttpUser):
                 exception=e,
                 start_time=time.time(),
                 url=f"{self.host}/handshake/finalize"
+            )
+
+    @task
+    def test_session(self):
+        if not hasattr(self, 'handshake_data') or not hasattr(self, 'client_id'):
+            return
+        try:
+            start = time.time()
+            ks = perform_finalize(f"{self.host}/handshake/finalize", self.handshake_data)
+            K_enc, K_mac = derive_keys(ks)
+            session = {
+                "client_id": self.client_id,
+                "k_enc": K_enc,
+                "k_mac": K_mac,
+                "ecdsa_priv": self.handshake_data["ecdsa_priv"]
+            }
+            large_data_10mb = os.urandom(10 * 1024 * 1024)
+            perform_session_test(f"{self.host}/session/test", session, large_data_10mb)
+            response_time = (time.time() - start) * 1000
+            self.environment.events.request.fire(
+                request_type="POST",
+                name="/session/test_pc",
+                response_time=response_time,
+                response_length=len(large_data_10mb),
+                response=None,
+                context={},
+                exception=None,
+                start_time=start,
+                url=f"{self.host}/session/test"
+            )
+            # Перезапускаем рукопожатие для следующей итерации
+            nonce = os.urandom(8)
+            self.handshake_data = perform_handshake(f"{self.host}/handshake/init", nonce1=nonce)
+            self.client_id = self.handshake_data["client_id"]
+            self.client.headers["X-Client-ID"] = self.client_id
+        except Exception as e:
+            print(f"Ошибка test_session (PCUser): {str(e)}")
+            self.environment.events.request.fire(
+                request_type="POST",
+                name="/session/test_pc",
+                response_time=0,
+                response_length=0,
+                response=None,
+                context={},
+                exception=e,
+                start_time=time.time(),
+                url=f"{self.host}/session/test"
             )

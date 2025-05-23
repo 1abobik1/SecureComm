@@ -1,0 +1,2 @@
+gen-docs-auth:
+	swag init -g cmd/main.go -o docs

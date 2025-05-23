@@ -14,10 +14,12 @@ func LoadDERPub(path string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	
 	block, _ := pem.Decode(pemBytes)
 	if block == nil {
 		return nil, fmt.Errorf("no PEM data in %s", path)
 	}
+
 	return block.Bytes, nil
 }
 

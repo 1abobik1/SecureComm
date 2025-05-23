@@ -6,25 +6,81 @@ services:
       - "6379:6379"
     networks:
       - app-network
+    volumes:
+      - redis_data:/data
 
-  http_api:
+  secure_comm_service:
     build:
-      context: ./server/
+      context: ./server/secure_comm_service
       dockerfile: Dockerfile
-    container_name: securecomm_http_api
-    depends_on:
-      - redis
+    container_name: secure_comm_service
     ports:
       - "8080:8080"
     env_file:
-      - ./server/.env
+      - ./server/secure_comm_service/.env
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
-      - ./server/internal/keys:/root/keys:rw
+      - ./server/secure_comm_service/internal/keys:/root/keys:rw
     restart: unless-stopped
     networks:
       - app-network
 
+  auth_db:
+    container_name: auth_db
+    image: postgres:14-alpine
+    env_file:
+      - ./server/auth_service/.env
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+      - ./server/auth_service/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    networks:
+      - app-network
+
+  auth-service:
+    container_name: auth_service
+    build:
+      context: ./server/auth_service
+      dockerfile: Dockerfile
+    env_file:
+      - ./server/auth_service/.env
+    depends_on:
+      - auth_db
+    ports:
+      - "8081:8081"
+    networks:
+      - app-network
+
+  minio:
+    container_name: minio
+    image: minio/minio
+    env_file:
+      - ./server/secure_comm_service/.env
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9002:9002"
+    command: server /data --console-address ":9002"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 volumes:
+  auth_db_data:
+  file_upload_db_data:
+  minio_data:
   redis_data:
 
 networks:

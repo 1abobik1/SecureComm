@@ -1,0 +1,207 @@
+definitions:
+  dto.LogInDTO:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      platform:
+        type: string
+    required:
+    - email
+    - password
+    - platform
+    type: object
+  dto.SignUpDTO:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      platform:
+        type: string
+    required:
+    - email
+    - password
+    - platform
+    type: object
+  handlerUsers.LogoutRequest:
+    properties:
+      platform:
+        enum:
+        - web
+        - tg-bot
+        type: string
+      refresh_token:
+        description: для tg-bot
+        type: string
+    required:
+    - platform
+    type: object
+info:
+  contact: {}
+paths:
+  /token/update:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Берёт refresh‑токен из Cookie и генерирует новые refresh- и access‑токены.
+        Клиент должен вызывать этот endpoint при получении HTTP 401 (реализуйте interceptor на клиенте).
+      parameters:
+      - description: 'Cookie header, например: refresh_token=<token>'
+        in: header
+        name: Cookie
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Новый access_token в теле
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized — отсутствует или невалидный refresh‑токен
+          schema:
+            type: string
+      summary: Обновление access‑токена
+      tags:
+      - token
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Логин по email и паролю.
+        Если platform="tg-bot", возвращаются в JSON:
+        - access_token
+        - refresh_token
+        - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде
+        - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде
+        Если platform="web", возвращаются:
+        - access_token в JSON
+        - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем
+        - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем
+      parameters:
+      - description: Email, Password и Platform (web или tg-bot)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LogInDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad request или неверная платформа
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: incorrect password or email
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: user not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Аутентификация пользователя
+      tags:
+      - users
+  /users/logout:
+    post:
+      consumes:
+      - application/json
+      description: Отзывает refresh-токен. Для web берёт токен из cookie, для tg-bot
+        — из JSON body. Для веба не надо передавать refresh_token в json body
+      parameters:
+      - description: '{'
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handlerUsers.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: error — некорректный запрос или платформа не поддерживается
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized — отсутствует или невалидный токен
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: Выход (logout)
+      tags:
+      - users
+  /users/signup:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт нового пользователя. В зависимости от platform возвращает
+        refresh‑токен в cookie (для web) или в теле ответа (для tg-bot).
+      parameters:
+      - description: Email, Password и Platform (web или tg-bot)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SignUpDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Для web: {access_token}, refresh в cookie; для tg-bot: {access_token,
+            refresh_token}'
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: error – некорректный запрос или платформа не поддерживается
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: error – пользователь с таким email уже существует
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+      summary: Регистрация пользователя
+      tags:
+      - users
+swagger: "2.0"
