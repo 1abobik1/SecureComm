@@ -53,7 +53,7 @@ def generate_nonce(size):
     return base64.b64encode(buf).decode('utf-8'), buf
 
 # Выполняет начальный этап обмена ключами с сервером
-def perform_handshake(init_url, nonce1=None):
+def perform_handshake(init_url, access_token=None):
     rsa_priv, rsa_pub, ecdsa_priv, ecdsa_pub = generate_keys()
     rsa_pub_der = rsa_pub.public_bytes(
         encoding=serialization.Encoding.DER,
@@ -65,7 +65,7 @@ def perform_handshake(init_url, nonce1=None):
     )
     rsa_pub_der_b64 = base64.b64encode(rsa_pub_der).decode()
     ecdsa_pub_der_b64 = base64.b64encode(ecdsa_pub_der).decode()
-    nonce1_b64, nonce1 = generate_nonce(8) if nonce1 is None else (base64.b64encode(nonce1).decode('utf-8'), nonce1)
+    nonce1_b64, nonce1 = generate_nonce(8)
     data_to_sign = base64.b64decode(rsa_pub_der_b64) + base64.b64decode(ecdsa_pub_der_b64) + base64.b64decode(nonce1_b64)
     signature1 = sign_ecdsa(ecdsa_priv, data_to_sign)
     payload = {
@@ -74,7 +74,8 @@ def perform_handshake(init_url, nonce1=None):
         "nonce1": nonce1_b64,
         "signature1": signature1
     }
-    response = requests.post(init_url, json=payload)
+    headers = {"Authorization": f"Bearer {access_token}"} if access_token else {}
+    response = requests.post(init_url, json=payload, headers=headers)
     response.raise_for_status()
     server_data = response.json()
     client_id = server_data["client_id"]
@@ -99,7 +100,7 @@ def perform_handshake(init_url, nonce1=None):
     }
 
 # Выполняет финальный этап обмена ключами, устанавливает сессионный ключ
-def perform_finalize(fin_url, handshake_data, nonce3=None):
+def perform_finalize(fin_url, handshake_data, access_token=None, nonce3=None):
     _, ks = generate_nonce(32)
     nonce3_b64, nonce3 = generate_nonce(8) if nonce3 is None else (base64.b64encode(nonce3).decode('utf-8'), nonce3)
     payload = ks + nonce3 + handshake_data["nonce2"]
@@ -119,7 +120,7 @@ def perform_finalize(fin_url, handshake_data, nonce3=None):
         "encrypted": encrypted_b64,
         "signature3": sig3
     }
-    headers = {"X-Client-ID": handshake_data["client_id"]}
+    headers = {"X-Client-ID": handshake_data["client_id"], "Authorization": f"Bearer {access_token}"} if access_token else {"X-Client-ID": handshake_data["client_id"]}
     response = requests.post(fin_url, json=payload, headers=headers, timeout=5)
     response.raise_for_status()
     response_data = response.json()
@@ -142,12 +143,11 @@ def derive_keys(ks):
     return k_enc, k_mac
 
 # Выполняет тест сессии, отправляет зашифрованное сообщение
-def perform_session_test(test_url, session, plaintext="Hello, Secure World!"):
+def perform_session_test(test_url, session, access_token=None, plaintext="Hello, Secure World!"):
     start = time.time()
     ts = int(time.time() * 1000)  # Timestamp в миллисекундах
     timestamp = ts.to_bytes(8, byteorder='big')
-    nonce = os.urandom(16)  # 16 байт для nonce
-    # Принимаем plaintext как str или bytes
+    nonce = os.urandom(16)
     if isinstance(plaintext, str):
         plaintext_bytes = plaintext.encode('utf-8')
     else:
@@ -170,7 +170,11 @@ def perform_session_test(test_url, session, plaintext="Hello, Secure World!"):
         "encrypted_message": b64msg,
         "client_signature": signature
     }
-    headers = {"X-Client-ID": session["client_id"], "Content-Type": "application/json"}
+    headers = {
+        "X-Client-ID": session["client_id"],
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}" if access_token else ""
+    }
     response = requests.post(test_url, json=payload, headers=headers, timeout=30)
     response.raise_for_status()
     response_data = response.json()
@@ -183,12 +187,9 @@ def perform_session_test(test_url, session, plaintext="Hello, Secure World!"):
 
 # Основной процесс
 def main():
-    # init_url = "http://localhost:8080/handshake/init"
-    # fin_url = "http://localhost:8080/handshake/finalize"
-    # test_url = "http://localhost:8080/session/test"
-    init_url = "http://localhost:8081/handshake/init"
-    fin_url = "http://localhost:8081/handshake/finalize"
-    test_url = "http://localhost:8081/session/test"
+    init_url = "http://localhost:8080/handshake/init"
+    fin_url = "http://localhost:8080/handshake/finalize"
+    test_url = "http://localhost:8080/session/test"
     start_total = time.time()
     handshake_data = perform_handshake(init_url)
     print(f"Обмен ключами успешно завершен, идентификатор клиента: {handshake_data['client_id']}")

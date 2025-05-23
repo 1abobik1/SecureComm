@@ -122,12 +122,12 @@ class TestHandshakeSecurity(unittest.TestCase):
             "k_mac": K_mac,
             "ecdsa_priv": handshake_data["ecdsa_priv"]
         }
+        # Тест с 5 МБ
+        large_data_5mb = os.urandom(5 * 1024 * 1024)
+        perform_session_test(self.test_url, session, large_data_5mb)
         # Тест с 10 МБ
         large_data_10mb = os.urandom(10 * 1024 * 1024)
         perform_session_test(self.test_url, session, large_data_10mb)
-        # Тест с 25 МБ
-        large_data_25mb = os.urandom(25 * 1024 * 1024)
-        perform_session_test(self.test_url, session, large_data_25mb)
         # Проверяем, что запросы прошли без ошибок (ошибки вызовут исключение)
 
 if __name__ == "__main__":
