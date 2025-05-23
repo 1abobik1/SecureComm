@@ -1,9 +1,11 @@
 package main
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/1abobik1/AuthService/config"
+	"github.com/1abobik1/AuthService/internal/external_api"
 	handlerToken "github.com/1abobik1/AuthService/internal/handler/http/token"
 	handlerUsers "github.com/1abobik1/AuthService/internal/handler/http/users"
 	serviceToken "github.com/1abobik1/AuthService/internal/service/token"
@@ -17,6 +19,25 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// @title           File Upload Service API
+// @version         1.0
+// @description     API для загрузки, получения и удаления файлов в облачном хранилище MinIO.
+// @termsOfService  http://example.com/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.example.com/support
+// @contact.email  support@example.com
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8080
+// @BasePath  /
+
+// @securityDefinitions.apikey  bearerAuth
+// @in                          header
+// @name                        Authorization
+// @description                 "Bearer {token}"
 func main() {
 	cfg := config.MustLoad()
 
@@ -26,7 +47,15 @@ func main() {
 	}
 
 	userService := serviceUsers.NewUserService(postgresStorage, *cfg)
-	userHandler := handlerUsers.NewUserHandler(userService)
+
+	// подключение клиента для внешних апи
+	httpClient := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+	tgClient := external_api.NewTGClient(cfg.ExternalTGClient, httpClient)
+	webClient := external_api.NewWEBClient(cfg.ExternalWebClient, httpClient)
+
+	userHandler := handlerUsers.NewUserHandler(userService, tgClient, webClient)
 
 	tokenService := serviceToken.NewTokenService(postgresStorage, *cfg)
 	tokenHandler := handlerToken.NewTokenHandler(tokenService)
