@@ -16,24 +16,24 @@ import (
 // Login
 // @Summary      Аутентификация пользователя
 // @Description  Логин по email и паролю.
-// @Description  Если platform="tg-bot", возвращаются в JSON:
-// @Description    - access_token
-// @Description    - refresh_token
-// @Description    - ecdsa_priv_client (Base64)
-// @Description    - ks (Base64)
-// @Description  Если platform="web", возвращаются:
-// @Description    - access_token в JSON
-// @Description    - ecdsa_priv_client (Base64)
-// @Description    - ks (Base64)
+// @Description  В зависимости от поля `platform` в запросе возвращаются разные данные:
+// @Description    • для `platform="tg-bot"`:
+// @Description        – `access_token`
+// @Description        – `refresh_token`
+// @Description        – `k_enc` (Base64)
+// @Description        – `k_mac` (Base64)
+// @Description    • для `platform="web"`:
+// @Description        – `access_token`
+// @Description        – `ks` (JSON-объект с полями `k_enc_iv`, `k_enc_data`, `k_mac_iv`, `k_mac_data`)
 // @Tags         users
 // @Accept       json
 // @Produce      json
 // @Param        body  body      dto.LogInDTO  true  "Email, Password и Platform (web или tg-bot)"
-// @Success      200   {object}  map[string]string
-// @Failure      400   {object}  map[string]string  "Bad request или неверная платформа"
-// @Failure      403   {object}  map[string]string  "incorrect password or email"
-// @Failure      404   {object}  map[string]string  "user not found"
-// @Failure      500   {string}  string             "Internal Server Error"
+// @Success      200   {object}  map[string]interface{}  "Поля ответа зависят от платформы (см. описание выше)"
+// @Failure      400   {object}  map[string]string       "Bad request или неверный формат platform"
+// @Failure      403   {object}  map[string]string       "incorrect password or email"
+// @Failure      404   {object}  map[string]string       "user not found"
+// @Failure      500   {string}  string                  "Internal Server Error"
 // @Router       /user/login [post]
 func (h *userHandler) Login(c *gin.Context) {
 	const op = "handler.http.users.Login"

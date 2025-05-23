@@ -9,8 +9,8 @@ import (
 )
 
 type TgResp struct {
-	Kenc string `json:"k_enc"`
-	Kmac string `json:"k_mac"`
+	Kenc string `json:"k_enc"` // base64
+	Kmac string `json:"k_mac"` // base64
 }
 
 func (c *TGClient) GetClientKS(ctx context.Context, accessToken string) (ks_enc, ks_mac string, er error) {
