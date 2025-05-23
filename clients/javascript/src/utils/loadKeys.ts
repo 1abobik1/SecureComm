@@ -1,26 +1,37 @@
-import fs, {readFileSync} from 'fs';
-import {createPrivateKey} from 'crypto';
-import forge from 'node-forge';
+export async function generateRSAPublicKeyDER(): Promise<Uint8Array> {
+    const keyPair = await crypto.subtle.generateKey(
+        {
+            name: "RSA-PSS",
+            modulusLength: 3072, // можно изменить на нужную длину
+            publicExponent: new Uint8Array([0x01, 0x00, 0x01]), // 65537
+            hash: "SHA-256",
+        },
+        true, // ключи можно экспортировать
+        ["sign", "verify"]
+    );
 
-export function loadDERPub(path: string): Buffer {
-    const pem = fs.readFileSync(path, 'utf8');
-    const pubKey = forge.pki.publicKeyFromPem(pem);
-    const der = forge.asn1.toDer(forge.pki.publicKeyToAsn1(pubKey));
-    return Buffer.from(der.getBytes(), 'binary');
+    // Экспортируем публичный ключ в формате SPKI (DER)
+    const spkiDer = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+
+    return new Uint8Array(spkiDer);
 }
 
-export function loadECDSAPriv(path: string): Buffer{
-    const pemContent = readFileSync(path, 'utf8');
+export async function generateECDSAKeys(): Promise<[Uint8Array, CryptoKey]> {
+    // Генерация ключевой пары
+    const keyPair = await crypto.subtle.generateKey(
+        {
+            name: "ECDSA",
+            namedCurve: "P-256",
+        },
+        true,
+        ["sign", "verify"]
+    );
 
-    const key = createPrivateKey({
-        key: pemContent,
-        format: 'pem',
-    });
-    const derFormat = key.export({
-        format: 'der',
-        type: 'sec1'
-    });
+    // Экспорт публичного ключа в формате SPKI (DER)
+    const publicKeyDer = await crypto.subtle.exportKey("spki", keyPair.publicKey);
 
-    // 4. Возвращаем как Buffer
-    return Buffer.from(derFormat);
+    // Экспорт приватного ключа в формате PKCS8 (DER)
+    const privateKeyDer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+
+    return [new Uint8Array(publicKeyDer), keyPair.privateKey];
 }

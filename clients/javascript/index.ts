@@ -1,35 +1,28 @@
-import {loadDERPub, loadECDSAPriv} from './src/utils/loadKeys';
-import {doFinalizeAPI, doInitAPI} from './src/http/http';
-import {performance} from 'perf_hooks';
-import {randomBytes} from "crypto";
-import {doSessionTest} from "./src/utils/session";
+import {generateECDSAKeys, generateRSAPublicKeyDER,} from './src/utils/loadKeys';
+import {doFinalizeAPI, doInitAPI} from "./src/handshake/http";
+import {doSessionTest} from "./src/session/session";
+import {generateNonce} from "./src/utils/scrypto";
 
 
 const config = {
-    rsaPubPath: 'src/keys/client_rsa.pub',
-    ecdsaPubPath: 'src/keys/client_ecdsa.pub',
-    ecdsaPrivPath: 'src/keys/client_ecdsa.pem',
     initURL: 'http://localhost:8080/handshake/init',
     finURL: 'http://localhost:8080/handshake/finalize',
     sesURL: 'http://localhost:8080/session/test'
 };
 
 function generateBigMsg(sizeBytes: number): string {
-    const b = randomBytes(sizeBytes);
-    return b.toString('base64');
+    const [_,b] = generateNonce(sizeBytes);
+    return btoa(String.fromCharCode(...b));
 }
 
-const MB10 = 10 * 1024 * 1024; // 10MB в байтах
+const MB10 = 10 * 1024;
 
 async function main() {
     try {
-        // Загрузка ключей
-        const rsaPubDER = loadDERPub(config.rsaPubPath);
-        const ecdsaPubDER = loadDERPub(config.ecdsaPubPath);
-        const ecdsaPriv = loadECDSAPriv(config.ecdsaPrivPath);
+        const rsaPubDER = await generateRSAPublicKeyDER();
+        const [ecdsaPubDER, ecdsaPriv] = await generateECDSAKeys();
 
-
-        // Init handshake
+        //Init handshake
         const startInit = performance.now();
         const initResp = await doInitAPI(
             config.initURL,
@@ -37,32 +30,35 @@ async function main() {
             ecdsaPubDER,
             ecdsaPriv
         );
-        console.log('Init response:', initResp);
+
         console.log(`Init handshake time: ${performance.now() - startInit}ms`);
 
         // Finalize handshake
         const startFin = performance.now();
-        const finResp = await doFinalizeAPI(
+        const [finResp,ks] = await doFinalizeAPI(
             config.finURL,
-            config.sesURL,
             initResp,
             ecdsaPriv
         );
-        console.log('Finalize response:', finResp);
+
         console.log(`Finalize handshake time: ${performance.now() - startFin}ms`);
 
-        // Test session
+        //Test session
         const startSesTest = performance.now();
         const testMessage = generateBigMsg(MB10);
-        console.log(`Testing session with ${MB10 / (1024 * 1024)}MB message...`);
 
-        await doSessionTest(finResp, testMessage);
+        await doSessionTest(
+            config.sesURL,
+            initResp,
+            ecdsaPriv,
+            ks,
+            testMessage
+        );
 
-        console.log('Session test completed successfully');
         console.log(`Session test time: ${performance.now() - startSesTest}ms`);
 
     } catch (err) {
-        console.error('Error:', err instanceof Error ? err.message : String(err));
+        console.error('Ошибка:', err instanceof Error ? err.message : String(err));
         process.exit(1);
     }
 }
