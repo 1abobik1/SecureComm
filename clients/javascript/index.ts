@@ -1,5 +1,5 @@
 import {generateECDSAKeys, generateRSAPublicKeyDER,} from './src/utils/loadKeys';
-import {doFinalizeAPI, doInitAPI} from "./src/handshake/http";
+import {doFinalizeAPI, doInitAPI} from "./src/handshake/handshake";
 import {doSessionTest} from "./src/session/session";
 import {generateNonce} from "./src/utils/scrypto";
 
