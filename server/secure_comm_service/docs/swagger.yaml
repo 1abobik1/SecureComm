@@ -179,6 +179,55 @@ paths:
       summary: Получение всех файлов категории
       tags:
       - Files
+  /files/one:
+    delete:
+      description: Удаляет один объект из MinIO и снижает использование квоты.
+      parameters:
+      - description: Bearer {token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Идентификатор объекта
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: Категория файла (photo, unknown, video, text)
+        in: query
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Файл успешно удалён
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+        "403":
+          description: Доступ запрещён
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+        "404":
+          description: Файл не найден
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Удаление одного файла
+      tags:
+      - Files
   /files/one/encrypted:
     post:
       consumes:
