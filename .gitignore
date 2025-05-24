@@ -17,6 +17,8 @@ server/file_upload_service/minio_files
 # client
 clients/golang/keys/
 clients/golang/internal/big_message/
+clients/python/sessions.db
+clients/python/cloud_swagger.yaml
 
 # Python
 __pycache__/
