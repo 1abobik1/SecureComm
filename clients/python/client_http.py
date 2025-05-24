@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.hmac import HMAC
 from cryptography.hazmat.primitives.padding import PKCS7
 
+
 # Генерирует пару RSA и ECDSA ключей для клиента
 def generate_keys():
     rsa_private_key = rsa.generate_private_key(public_exponent=65537, key_size=3072)
@@ -15,6 +16,7 @@ def generate_keys():
     ecdsa_private_key = ec.generate_private_key(curve=ec.SECP256R1())
     ecdsa_public_key = ecdsa_private_key.public_key()
     return rsa_private_key, rsa_public_key, ecdsa_private_key, ecdsa_public_key
+
 
 # Сериализует ключ в формат DER (или PEM для приватных) и кодирует в base64 для публичных
 def serialize_key_to_der(key, is_private=False):
@@ -32,10 +34,12 @@ def serialize_key_to_der(key, is_private=False):
         )
         return base64.b64encode(der).decode('utf-8')
 
+
 # Создает ECDSA подпись для данных и возвращает её в base64
 def sign_ecdsa(ecdsa_private_key, data):
     signature = ecdsa_private_key.sign(data, ec.ECDSA(hashes.SHA256()))
     return base64.b64encode(signature).decode('utf-8')
+
 
 # Проверяет ECDSA подпись, возвращает True если подпись верна
 def verify_ecdsa(ecdsa_public_key, data, signature_b64):
@@ -47,10 +51,12 @@ def verify_ecdsa(ecdsa_public_key, data, signature_b64):
         print(f"Verification failed: {e}")
         return False
 
+
 # Генерирует случайный nonce заданного размера, возвращает в base64 и сырые байты
 def generate_nonce(size):
     buf = os.urandom(size)
     return base64.b64encode(buf).decode('utf-8'), buf
+
 
 # Выполняет начальный этап обмена ключами с сервером
 def perform_handshake(init_url, access_token=None):
@@ -66,7 +72,8 @@ def perform_handshake(init_url, access_token=None):
     rsa_pub_der_b64 = base64.b64encode(rsa_pub_der).decode()
     ecdsa_pub_der_b64 = base64.b64encode(ecdsa_pub_der).decode()
     nonce1_b64, nonce1 = generate_nonce(8)
-    data_to_sign = base64.b64decode(rsa_pub_der_b64) + base64.b64decode(ecdsa_pub_der_b64) + base64.b64decode(nonce1_b64)
+    data_to_sign = base64.b64decode(rsa_pub_der_b64) + base64.b64decode(ecdsa_pub_der_b64) + base64.b64decode(
+        nonce1_b64)
     signature1 = sign_ecdsa(ecdsa_priv, data_to_sign)
     payload = {
         "rsa_pub_client": rsa_pub_der_b64,
@@ -78,6 +85,7 @@ def perform_handshake(init_url, access_token=None):
     response = requests.post(init_url, json=payload, headers=headers)
     response.raise_for_status()
     server_data = response.json()
+
     client_id = server_data["client_id"]
     rsa_pub_server_der = base64.b64decode(server_data["rsa_pub_server"])
     ecdsa_pub_server_der = base64.b64decode(server_data["ecdsa_pub_server"])
@@ -98,6 +106,7 @@ def perform_handshake(init_url, access_token=None):
         "nonce1": nonce1,
         "nonce1_b64": nonce1_b64
     }
+
 
 # Выполняет финальный этап обмена ключами, устанавливает сессионный ключ
 def perform_finalize(fin_url, handshake_data, access_token=None, nonce3=None):
@@ -120,7 +129,9 @@ def perform_finalize(fin_url, handshake_data, access_token=None, nonce3=None):
         "encrypted": encrypted_b64,
         "signature3": sig3
     }
-    headers = {"X-Client-ID": handshake_data["client_id"], "Authorization": f"Bearer {access_token}"} if access_token else {"X-Client-ID": handshake_data["client_id"]}
+    headers = {"X-Client-ID": handshake_data["client_id"],
+               "Authorization": f"Bearer {access_token}"} if access_token else {
+        "X-Client-ID": handshake_data["client_id"]}
     response = requests.post(fin_url, json=payload, headers=headers, timeout=5)
     response.raise_for_status()
     response_data = response.json()
@@ -129,6 +140,7 @@ def perform_finalize(fin_url, handshake_data, access_token=None, nonce3=None):
     if not verify_ecdsa(handshake_data["ecdsa_pub_server"], data_to_verify, signature4_b64):
         raise Exception("Ошибка проверки подписи сервера (signature4)")
     return ks
+
 
 # Деривирует ключи шифрования (K_enc) и MAC (K_mac) из сессионного ключа
 def derive_keys(ks):
@@ -141,6 +153,43 @@ def derive_keys(ks):
     k_mac = h_mac.finalize()
 
     return k_enc, k_mac
+
+
+# Шифрует файл в формате timestamp||nonce||IV||ciphertext||tag
+def encrypt_file(file_path, k_enc_b64, k_mac_b64):
+    # Декодируем ключи из Base64
+    k_enc = base64.b64decode(k_enc_b64)
+    k_mac = base64.b64decode(k_mac_b64)
+
+    # Читаем файл
+    with open(file_path, "rb") as f:
+        plaintext = f.read()
+
+    # Добавляем timestamp и nonce
+    timestamp = int(time.time() * 1000).to_bytes(8, byteorder='big')
+    nonce = os.urandom(16)
+    blob = timestamp + nonce + plaintext
+
+    # Паддинг
+    padder = PKCS7(128).padder()
+    padded = padder.update(blob) + padder.finalize()
+
+    # Шифрование AES-CBC
+    iv = os.urandom(16)
+    cipher = Cipher(algorithms.AES(k_enc), modes.CBC(iv))
+    encryptor = cipher.encryptor()
+    ciphertext = encryptor.update(padded) + encryptor.finalize()
+
+    # HMAC
+    h = HMAC(k_mac, hashes.SHA256())
+    h.update(iv)
+    h.update(ciphertext)
+    tag = h.finalize()
+
+    # Собираем пакет
+    pkg = timestamp + nonce + iv + ciphertext + tag
+    return pkg
+
 
 # Выполняет тест сессии, отправляет зашифрованное сообщение
 def perform_session_test(test_url, session, access_token=None, plaintext="Hello, Secure World!"):
@@ -179,11 +228,13 @@ def perform_session_test(test_url, session, access_token=None, plaintext="Hello,
     response.raise_for_status()
     response_data = response.json()
     duration = (time.time() - start) * 1000
-    print(f"Время шифрования и отправки (/session/test, {len(plaintext_bytes)/1024/1024:.2f} МБ): {duration:.2f} мс")
+    print(
+        f"Время шифрования и отправки (/session/test, {len(plaintext_bytes) / 1024 / 1024:.2f} МБ): {duration:.2f} мс")
     print("Тест сессии успешно завершён!")
     print(f"Сервер расшифровал: {len(response_data['plaintext'])} символов")
     if len(response_data['plaintext']) != len(plaintext_bytes):
         print(f"Предупреждение: Сервер вернул {len(response_data['plaintext'])} байт, ожидалось {len(plaintext_bytes)}")
+
 
 # Основной процесс
 def main():
@@ -203,10 +254,12 @@ def main():
         "k_mac": K_mac,
         "ecdsa_priv": handshake_data["ecdsa_priv"]
     }
-    print(f"Ключи сгенерированы: K_enc={base64.b64encode(K_enc).decode('utf-8')[:10]}..., K_mac={base64.b64encode(K_mac).decode('utf-8')[:10]}...")
+    print(
+        f"Ключи сгенерированы: K_enc={base64.b64encode(K_enc).decode('utf-8')[:10]}..., K_mac={base64.b64encode(K_mac).decode('utf-8')[:10]}...")
     perform_session_test(test_url, session)
     total_time = (time.time() - start_total) * 1000
     print(f"Общее время выполнения: {total_time:.2f} мс")
+
 
 if __name__ == "__main__":
     main()

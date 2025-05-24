@@ -1,13 +1,14 @@
+import base64
+import jwt
 import sqlite3
 import logging
-import base64
 import os
 import requests
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, ConversationHandler, filters
 from telegram.error import TimedOut
-from cryptography.hazmat.primitives import serialization
-from client_http import perform_handshake, perform_finalize,derive_keys
+import asyncio
+from client_http import encrypt_file,perform_finalize,perform_handshake,derive_keys
 
 # Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Токен бота
 TOKEN = "7745265874:AAFKjBo36eDqq08hN30QTqK0v27HDnMlDL0"
 
-# URL API хранилища
+# URL API хранилища (хардкорные значения)
 AUTH_BASE_URL = "http://localhost:8081"  # Для Auth API (signup, login, logout)
 SECURECOMM_BASE_URL = "http://localhost:8080"  # Для SecureComm API (handshake, session)
 CLOUD_BASE_URL = "http://localhost:8080"  # Для Cloud API (MinIO)
@@ -26,7 +27,7 @@ LOGIN_URL = f"{AUTH_BASE_URL}/user/login"
 LOGOUT_URL = f"{AUTH_BASE_URL}/user/logout"
 HANDSHAKE_INIT_URL = f"{SECURECOMM_BASE_URL}/handshake/init"
 HANDSHAKE_FINALIZE_URL = f"{SECURECOMM_BASE_URL}/handshake/finalize"
-UPLOAD_FILES_URL = f"{CLOUD_BASE_URL}/files/many"
+UPLOAD_FILES_URL = f"{CLOUD_BASE_URL}/files/one/encrypted"  # Новый эндпоинт
 GET_FILE_URL = f"{CLOUD_BASE_URL}/files/one"
 DELETE_FILE_URL = f"{CLOUD_BASE_URL}/files/one"
 GET_ALL_FILES_URL = f"{CLOUD_BASE_URL}/files/all"
@@ -57,22 +58,21 @@ def init_db():
         CREATE TABLE IF NOT EXISTS sessions (
             telegram_id INTEGER PRIMARY KEY,
             client_id TEXT,
-            ks_client TEXT,              -- ks в Base64 от сервера или handshake
-            ecdsa_priv_client TEXT       -- ecdsa_priv в Base64 от сервера или handshake
+            k_enc TEXT,
+            k_mac TEXT
         )
     ''')
     conn.commit()
     conn.close()
-
 # Сохранение сессии в SQLite
-def save_session(telegram_id, client_id, ks_client=None, ecdsa_priv_client=None):
+def save_session(telegram_id, client_id, k_enc=None, k_mac=None):
     try:
         conn = sqlite3.connect("sessions.db")
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT OR REPLACE INTO sessions (telegram_id, client_id, ks_client, ecdsa_priv_client)
+            INSERT OR REPLACE INTO sessions (telegram_id, client_id, k_enc, k_mac)
             VALUES (?, ?, ?, ?)
-        ''', (telegram_id, client_id, ks_client, ecdsa_priv_client))
+        ''', (telegram_id, client_id, k_enc, k_mac))
         conn.commit()
     except sqlite3.Error as e:
         logger.error(f"Ошибка при сохранении сессии: {e}")
@@ -86,14 +86,14 @@ def get_session(telegram_id):
         conn = sqlite3.connect("sessions.db")
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT client_id, ks_client, ecdsa_priv_client FROM sessions WHERE telegram_id = ?",
+            "SELECT client_id, k_enc, k_mac FROM sessions WHERE telegram_id = ?",
             (telegram_id,))
         result = cursor.fetchone()
         if result:
             return {
                 "client_id": result[0],
-                "ks_client": result[1],
-                "ecdsa_priv_client": result[2]
+                "k_enc": result[1],
+                "k_mac": result[2]
             }
         return None
     except sqlite3.Error as e:
@@ -181,23 +181,18 @@ async def register_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["access_token"] = access_token
         context.user_data["refresh_token"] = refresh_token
 
-        # Выполняем handshake
+        # Выполняем handshake для получения client_id, k_enc и k_mac
         handshake_data = perform_handshake(HANDSHAKE_INIT_URL, access_token)
         ks = perform_finalize(HANDSHAKE_FINALIZE_URL, handshake_data, access_token)
         client_id = handshake_data["client_id"]
-        ecdsa_priv = handshake_data["ecdsa_priv"]
 
-        # Сохраняем ключи в Base64
-        ks_client = base64.b64encode(ks).decode('utf-8')
-        ecdsa_priv_bytes = ecdsa_priv.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.PKCS8,
-            encryption_algorithm=serialization.NoEncryption()
-        )
-        ecdsa_priv_client = base64.b64encode(ecdsa_priv_bytes).decode('utf-8')
+        # Деривируем ключи k_enc и k_mac
+        k_enc, k_mac = derive_keys(ks)
+        k_enc_b64 = base64.b64encode(k_enc).decode('utf-8')
+        k_mac_b64 = base64.b64encode(k_mac).decode('utf-8')
 
         # Сохраняем сессию
-        save_session(update.effective_user.id, client_id, ks_client, ecdsa_priv_client)
+        save_session(update.effective_user.id, client_id, k_enc_b64, k_mac_b64)
 
         await update.message.reply_text("Регистрация успешна! Теперь вы можете работать с файлами.", reply_markup=ReplyKeyboardMarkup(FILE_MENU_BUTTONS, resize_keyboard=True))
     except requests.exceptions.HTTPError as e:
@@ -228,6 +223,7 @@ async def login_email(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Введите пароль:")
     return PASSWORD
 
+
 async def login_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     email = context.user_data["email"]
     password = update.message.text
@@ -242,38 +238,34 @@ async def login_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except ValueError:
             logger.error(f"Не удалось разобрать JSON ответа: {response.text}")
             raise ValueError("Сервер вернул невалидный JSON")
+
         access_token = data.get("access_token")
         refresh_token = data.get("refresh_token")
-        ks_client = data.get("ks_client")
-        ecdsa_priv_client = data.get("ecdsa_priv_client")
-        if not access_token or not refresh_token or not ks_client or not ecdsa_priv_client:
-            raise ValueError("Сервер не вернул все необходимые данные")
+        k_enc = data.get("k_enc")  # Получаем k_enc в Base64
+        k_mac = data.get("k_mac")  # Получаем k_mac в Base64
+        if not access_token or not refresh_token or not k_enc or not k_mac:
+            raise ValueError("Сервер не вернул access_token, refresh_token, k_enc или k_mac")
         context.user_data["access_token"] = access_token
         context.user_data["refresh_token"] = refresh_token
 
-        # Проверяем сессию
-        session = get_session(update.effective_user.id)
-        if session:
-            client_id = session["client_id"]
-            ks_client_existing = session["ks_client"]
-            ecdsa_priv_client_existing = session["ecdsa_priv_client"]
-            if ks_client != ks_client_existing or ecdsa_priv_client != ecdsa_priv_client_existing:
-                logger.warning("Данные от сервера отличаются от сохранённых. Обновляем сессию.")
-                save_session(update.effective_user.id, client_id, ks_client, ecdsa_priv_client)
-            else:
-                logger.info(f"Сессия для telegram_id {update.effective_user.id} актуальна.")
-        else:
-            # Выполняем handshake для получения client_id
-            handshake_data = perform_handshake(HANDSHAKE_INIT_URL, access_token)
-            client_id = handshake_data["client_id"]
-            save_session(update.effective_user.id, client_id, ks_client, ecdsa_priv_client)
+        # Извлекаем client_id из access_token
+        try:
+            decoded_token = jwt.decode(access_token, options={"verify_signature": False})
+            client_id = decoded_token.get("client_id")  # Проверяем client_id
+            if not client_id:
+                # Если client_id не найден, проверяем альтернативные поля
+                client_id = decoded_token.get("sub") or decoded_token.get("user_id") or decoded_token.get("id")
+                if not client_id:
+                    raise ValueError("client_id не найден в access_token под ожидаемыми полями")
+        except jwt.InvalidTokenError as e:
+            logger.error(f"Ошибка декодирования access_token: {e}")
+            raise ValueError("Не удалось декодировать access_token")
 
-        ks = base64.b64decode(ks_client)
-        ecdsa_priv_bytes = base64.b64decode(ecdsa_priv_client)
-        ecdsa_priv = serialization.load_pem_private_key(ecdsa_priv_bytes, password=None)
-        k_enc, k_mac = derive_keys(ks)
+        # Сохраняем сессию
+        save_session(update.effective_user.id, client_id, k_enc, k_mac)
 
-        await update.message.reply_text("Вход успешен! Теперь вы можете работать с файлами.", reply_markup=ReplyKeyboardMarkup(FILE_MENU_BUTTONS, resize_keyboard=True))
+        await update.message.reply_text("Вход успешен! Теперь вы можете работать с файлами.",
+                                        reply_markup=ReplyKeyboardMarkup(FILE_MENU_BUTTONS, resize_keyboard=True))
         return ConversationHandler.END
 
     except requests.exceptions.HTTPError as e:
@@ -352,16 +344,26 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        # Проверяем, есть ли файл в сообщении
-        if not update.message.document:
-            await update.message.reply_text("Ошибка: файл не получен. Пожалуйста, отправьте файл.")
-            logger.error("No file received in message")
+        # Проверяем, есть ли файл или фото в сообщении
+        if not update.message.document and not update.message.photo and not update.message.video:
+            await update.message.reply_text("Ошибка: файл или фото не получено. Пожалуйста, отправьте файл или фотографию видео.")
+            logger.error("No document or photo received in message")
             return
 
-        # Получаем объект файла
-        document = update.message.document
-        file_name = document.file_name
-        file_size = document.file_size  # Размер файла в байтах
+        # Получаем объект файла или фото
+        if update.message.document:
+            document = update.message.document
+            file_name = document.file_name or f"file_{update.message.message_id}.bin"
+            file_size = document.file_size
+        elif update.message.photo:
+            photo = update.message.photo[-1]  # Берем фото с максимальным разрешением
+            file_name = f"photo_{update.message.message_id}.jpg"
+            file_size = photo.file_size
+        elif update.message.video:
+            video = update.message.video
+            file_name = video.file_name or f"video_{update.message.message_id}.mp4"
+            file_size = video.file_size
+
         max_file_size = 50 * 1024 * 1024  # 50 МБ в байтах
 
         # Проверяем размер файла
@@ -375,19 +377,20 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info(f"File {file_name} too large: {file_size} bytes")
             return
 
-        # Скачиваем файл с таймаутом
-        file = await document.get_file(timeout=30)
+        # Скачиваем файл или фото локально
+        file = await (document.get_file() if update.message.document else
+                      photo.get_file() if update.message.photo else
+                      video.get_file())
         os.makedirs("uploads", exist_ok=True)
         file_path = os.path.join("uploads", file_name)
 
-        # Скачиваем файл с retry-логикой
         for attempt in range(3):
             try:
-                await file.download_to_drive(file_path, timeout=30)
+                await asyncio.wait_for(file.download_to_drive(file_path), timeout=30)
                 logger.info(f"File {file_name} successfully downloaded to {file_path}")
                 break
-            except TimedOut as e:
-                logger.warning(f"Download attempt {attempt + 1} failed for {file_name}: {str(e)}")
+            except asyncio.TimeoutError:
+                logger.warning(f"Download attempt {attempt + 1} failed for {file_name}: Timeout")
                 if attempt == 2:
                     await update.message.reply_text(
                         f"Не удалось скачать файл {file_name} из-за таймаута. Попробуйте снова."
@@ -396,15 +399,24 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     return
                 continue
 
-        # Загружаем файл в MinIO
-        access_token = context.user_data["access_token"]
-        headers = {"Authorization": f"Bearer {access_token}"}
-        mime_type = document.mime_type if document.mime_type else "application/octet-stream"
+        # Шифруем файл перед отправкой
+        encrypted_data = encrypt_file(file_path, session["k_enc"], session["k_mac"])
+        if not encrypted_data:
+            raise Exception("Ошибка шифрования файла")
 
-        with open(file_path, "rb") as f:
-            files = {"files": (file_name, f, mime_type)}
-            data = {"mime_type": mime_type}
-            response = requests.post(UPLOAD_FILES_URL, headers=headers, files=files, data=data)
+        # Отправляем зашифрованный файл
+        access_token = context.user_data["access_token"]
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/octet-stream",
+            "X-Orig-Filename": file_name,
+            "X-Orig-Mime": (document.mime_type if update.message.document else
+                            "image/jpeg" if update.message.photo else
+                            "video/mp4" if update.message.video else
+                            "application/octet-stream"),
+            "X-File-Category": "unknown"
+        }
+        response = requests.post(UPLOAD_FILES_URL, headers=headers, data=encrypted_data)
 
         response.raise_for_status()
         response_data = response.json()
