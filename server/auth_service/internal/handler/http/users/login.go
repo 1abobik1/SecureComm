@@ -15,25 +15,25 @@ import (
 
 // Login
 // @Summary      Аутентификация пользователя
-// @Description  Логин по email и паролю.  
-// @Description  Если platform="tg-bot", возвращаются в JSON:  
-// @Description    - access_token  
-// @Description    - refresh_token  
-// @Description    - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде  
-// @Description    - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать в «голом» виде  
-// @Description  Если platform="web", возвращаются:  
-// @Description    - access_token в JSON  
-// @Description    - ecdsa_priv_client (Base64)  // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем  
-// @Description    - ks (Base64)                // TODO(СДЕЛАЮ ПОПОЗЖЕ(ПОКА ПРОСТО ЗАТЫЧКИ)): во внешнем API передавать зашифрованным паролем  
+// @Description  Логин по email и паролю.
+// @Description  В зависимости от поля `platform` в запросе возвращаются разные данные:
+// @Description    • для `platform="tg-bot"`:
+// @Description        – `access_token`
+// @Description        – `refresh_token`
+// @Description        – `k_enc` (Base64)
+// @Description        – `k_mac` (Base64)
+// @Description    • для `platform="web"`:
+// @Description        – `access_token`
+// @Description        – `ks` (JSON-объект с полями `k_enc_iv`, `k_enc_data`, `k_mac_iv`, `k_mac_data`)
 // @Tags         users
 // @Accept       json
 // @Produce      json
 // @Param        body  body      dto.LogInDTO  true  "Email, Password и Platform (web или tg-bot)"
-// @Success      200   {object}  map[string]string
-// @Failure      400   {object}  map[string]string  "Bad request или неверная платформа"
-// @Failure      403   {object}  map[string]string  "incorrect password or email"
-// @Failure      404   {object}  map[string]string  "user not found"
-// @Failure      500   {string}  string             "Internal Server Error"
+// @Success      200   {object}  map[string]interface{}  "Поля ответа зависят от платформы (см. описание выше)"
+// @Failure      400   {object}  map[string]string       "Bad request или неверный формат platform"
+// @Failure      403   {object}  map[string]string       "incorrect password or email"
+// @Failure      404   {object}  map[string]string       "user not found"
+// @Failure      500   {string}  string                  "Internal Server Error"
 // @Router       /user/login [post]
 func (h *userHandler) Login(c *gin.Context) {
 	const op = "handler.http.users.Login"
@@ -76,32 +76,33 @@ func (h *userHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// TODO: сделать внешнее апи, которое пытается получить эти данные передаются в голом виде
-	// (также в другом сервисе будет авторизация через jwt, так что в хедере надо передавать этот access токен)
-	ECDSAPrivKeyb64_tg_bot := "ECDSAPrivKeyb64"
-	KSb64_tg_bot := "KSb64"
-
-	// TODO: сделать внешнее апи, которое пытается получить эти данные передаются в зашифрованном виде(шифром будет пароль, поэтому нужно еще передавать голый пароль клиента)
-	// (также в другом сервисе будет авторизация через jwt, так что в хедере надо передавать этот access токен)
-	ECDSAPrivKeyb64_WEB := "ECDSAPrivKeyb64"
-	KSb64_WEB := "KSb64"
-
-	// для тг бота
 	if authDTO.Platform == "tg-bot" {
+		// если клиент зашел с тг бота
+		kEncB64, kMacB64, err := h.tgClient.GetClientKS(c, accessToken)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "error in receiving session key and ecdsa"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
-			"access_token": accessToken,
-			"refresh_token": refreshToken,
-			"ecdsa_priv_client": ECDSAPrivKeyb64_tg_bot,
-			"ks": KSb64_tg_bot,
+			"access_token":      accessToken,
+			"refresh_token":     refreshToken,
+			"k_enc":                kEncB64,
+			"k_mac":                kMacB64,
 		})
 	} else {
-		// для web
+		// если клиент зашел с web сайта, ks передается в зашифрованной ввиде паролем пользователя
+		ksB64, err := h.webClient.GetClientKS(c, authDTO.Password, accessToken)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "error in receiving session key and ecdsa"})
+			return
+		}
+
 		utils.SetRefreshTokenCookie(c, refreshToken)
 
 		c.JSON(http.StatusOK, gin.H{
-			"access_token": accessToken,
-			"ecdsa_priv_client":ECDSAPrivKeyb64_WEB, 
-			"ks": KSb64_WEB,
+			"access_token":      accessToken,
+			"ks":                ksB64,
 		})
 	}
 }

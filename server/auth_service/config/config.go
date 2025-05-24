@@ -11,12 +11,14 @@ import (
 )
 
 type Config struct {
-	StoragePath     string        `env:"STORAGE_PATH" env-required:"true"`
-	HTTPServer      string        `env:"HTTP_SERVER_ADDRESS" env-required:"true"`
-	AccessTokenTTL  time.Duration `env:"ACCESS_TOKEN_TTL" env-required:"true"`
-	RefreshTokenTTL time.Duration `env:"REFRESH_TOKEN_TTL" env-required:"true"`
-	PublicKeyPath   string        `env:"PUBLIC_KEY_PATH" env-required:"true"`
-	PrivateKeyPath  string        `env:"PRIVATE_KEY_PATH" env-required:"true"`
+	StoragePath       string        `env:"STORAGE_PATH" env-required:"true"`
+	HTTPServer        string        `env:"HTTP_SERVER_ADDRESS" env-required:"true"`
+	AccessTokenTTL    time.Duration `env:"ACCESS_TOKEN_TTL" env-required:"true"`
+	RefreshTokenTTL   time.Duration `env:"REFRESH_TOKEN_TTL" env-required:"true"`
+	PublicKeyPath     string        `env:"PUBLIC_KEY_PATH" env-required:"true"`
+	PrivateKeyPath    string        `env:"PRIVATE_KEY_PATH" env-required:"true"`
+	ExternalWebClient string        `env:"EXTERNAL_WEB_CLIENT" env-required:"true"`
+	ExternalTGClient  string        `env:"EXTERNAL_TG_CLIENT" env-required:"true"`
 }
 
 func MustLoad() *Config {

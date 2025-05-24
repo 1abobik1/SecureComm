@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/1abobik1/SecureComm/config"
+	"github.com/1abobik1/SecureComm/internal/api"
 	"github.com/1abobik1/SecureComm/internal/checker"
 	"github.com/1abobik1/SecureComm/internal/handler/cloud_handler"
 	"github.com/1abobik1/SecureComm/internal/handler/handshake_handler"
@@ -75,7 +76,7 @@ func main() {
 	// redis для клиентских публичных ключей
 	clientKeys := client_keystore.NewRedisClientPubKeyStore(
 		rClient,
-		cfg.Redis.SessionKeyTTL,
+		cfg.Redis.ClientPubKeysTTL,
 	)
 
 	// redis для хранения nonces для handshake
@@ -109,6 +110,9 @@ func main() {
 	// хендлерный слой handshake
 	hsHandler := handshake_handler.NewHandler(hsService)
 
+	webClient := api.NewWEBClientKeysAPI(sessionStore)
+	tgClient := api.NewTGClientKeysAPI(sessionStore)
+
 	// limiter для /handshake
 	hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
 	hsLimiter.SetBurst(cfg.HSLimiter.Burst)
@@ -141,12 +145,8 @@ func main() {
 	// свагер документация
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// подключение middleware jwt-auth
-	r.Use(middleware.JWTMiddleware(cfg.JWT.PublicKeyPath))
-
 	authGroup := r.Group("/")
 	authGroup.Use(middleware.JWTMiddleware(cfg.JWT.PublicKeyPath))
-
 	{
 		// Handshake
 		hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
@@ -173,6 +173,16 @@ func main() {
 			routesFileApi.POST("/one/encrypted", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOneEncrypted)
 			routesFileApi.POST("/one", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOne)
 			// … и остальные /files/… роуты с тем же JWTMiddleware …
+		}
+
+		webClientApi := authGroup.Group("/web")
+		{
+			webClientApi.GET("/ks", webClient.GetClientKS)
+		}
+
+		tgClientApi := authGroup.Group("/tg-bot")
+		{
+			tgClientApi.GET("/ks", tgClient.GetClientKS)
 		}
 	}
 

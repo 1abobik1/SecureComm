@@ -18,11 +18,11 @@ type redisClientPubKeyStore struct {
 	ttl   time.Duration
 }
 
-func NewRedisClientPubKeyStore(rClient *redis.Client, ttl   time.Duration) *redisClientPubKeyStore {
+func NewRedisClientPubKeyStore(rClient *redis.Client, ttl time.Duration) *redisClientPubKeyStore {
 	return &redisClientPubKeyStore{
 		redis: rClient,
 		ctx:   context.Background(),
-		ttl: ttl,
+		ttl:   ttl,
 	}
 }
 
@@ -34,11 +34,11 @@ func (r *redisClientPubKeyStore) SaveClientKeys(ctx context.Context, clientID st
 
 	// для хранения кодируем DER→Base64, чтобы не зависеть от бинарных особенностей Redis
 	if err := r.redis.Set(r.ctx, keyRSA,
-		base64.StdEncoding.EncodeToString(rsaPubDER), 0).Err(); err != nil {
+		base64.StdEncoding.EncodeToString(rsaPubDER), r.ttl).Err(); err != nil {
 		return fmt.Errorf("redis save rsa_pub: %w", err)
 	}
 	if err := r.redis.Set(r.ctx, keyECDSA,
-		base64.StdEncoding.EncodeToString(ecdsaPubDER), 0).Err(); err != nil {
+		base64.StdEncoding.EncodeToString(ecdsaPubDER), r.ttl).Err(); err != nil {
 		return fmt.Errorf("redis save ecdsa_pub: %w", err)
 	}
 	return nil

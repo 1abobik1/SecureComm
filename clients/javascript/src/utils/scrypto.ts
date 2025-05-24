@@ -1,114 +1,212 @@
-import crypto, {createHash, KeyObject} from "crypto"; // Для кодирования/декодирования DER
-import {ec as EC} from 'elliptic';
-// @ts-ignore
-import asn1 from 'asn1.js';
+function rawECDSAToDER(rawSignature: Uint8Array): Uint8Array {
+    const r = rawSignature.slice(0, 32); // Первые 32 байта — R
+    const s = rawSignature.slice(32, 64); // Следующие 32 байта — S
 
-export function derToSignature (der: Buffer): DerSig {
-    let offset = 0;
+    // Преобразуем R и S в формат DER (добавляем ведущий 0x00, если необходимо)
+    const encodeInteger = (num: Uint8Array): Uint8Array => {
+        // Если старший бит равен 1, добавляем ведущий 0x00, чтобы интерпретировать как положительное число
+        const needsPadding = num[0] & 0x80 ? 1 : 0;
+        const length = num.length + needsPadding;
+        const result = new Uint8Array(length + 2); // 2 байта для тега INTEGER и длины
+        result[0] = 0x02; // Тег INTEGER
+        result[1] = length; // Длина
+        if (needsPadding) {
+            result[2] = 0x00;
+            result.set(num, 3);
+        } else {
+            result.set(num, 2);
+        }
+        return result;
+    };
 
-    // Check SEQUENCE tag
-    if (der[offset++] !== 0x30) throw new Error('Invalid DER: expected SEQUENCE');
+    const rDer = encodeInteger(r);
+    const sDer = encodeInteger(s);
 
-    // Read sequence length
-    const seqLength = der[offset++];
-    if (seqLength >= 0x80) throw new Error('Long form length not supported');
+    // Объединяем R и S в SEQUENCE
+    const totalLength = rDer.length + sDer.length;
+    const sequence = new Uint8Array(totalLength + 2); // 2 байта для тега SEQUENCE и длины
+    sequence[0] = 0x30; // Тег SEQUENCE
+    sequence[1] = totalLength; // Длина содержимого
+    sequence.set(rDer, 2);
+    sequence.set(sDer, 2 + rDer.length);
 
-    // Read INTEGER tag for R
-    if (der[offset++] !== 0x02) throw new Error('Expected INTEGER for R');
-    const rLength = der[offset++];
-    const rBytes = der.slice(offset, offset + rLength);
-    offset += rLength;
-    const R = BigInt('0x' + rBytes.toString('hex'));
-
-    // Read INTEGER tag for S
-    if (der[offset++] !== 0x02) throw new Error('Expected INTEGER for S');
-    const sLength = der[offset++];
-    const sBytes = der.slice(offset, offset + sLength);
-    const S = BigInt('0x' + sBytes.toString('hex'));
-    return { R, S };
+    return sequence;
 }
 
-
-// Определяем интерфейс для подписи
-export interface DerSig {
-    R: bigint;
-    S: bigint;
-}
-
-// Функция для подписи данных с помощью ECDSA (аналог Go-версии)
-export async function signPayloadECDSA(
-    privateKeyPEM: string | Buffer | Uint8Array, // Приватный ключ в PEM-формате
-    data: Buffer,          // Данные для подписи
-): Promise<string> {
-    try {
-        // 1. Хешируем данные (SHA-256)
-        const hash = createHash('sha256').update(data).digest();
-
-        // 2. Создаем экземпляр ECDSA (например, для кривой P-256)
-        const ec = new EC('p256');
-        const key = ec.keyFromPrivate(privateKeyPEM, 'pem');
-
-        // 3. Подписываем хеш
-        const signature = key.sign(hash, { canonical: true });
-
-        // 4. Получаем R и S в виде bigint
-        const derSig: DerSig = {
-            R: BigInt(`0x${signature.r.toString(16)}`),
-            S: BigInt(`0x${signature.s.toString(16)}`),
-        };
-
-        // 5. Кодируем в DER-формат (ASN.1)
-        const derEncoded = encodeECDSASignature(derSig);
-
-        // 6. Возвращаем в base64
-        return derEncoded.toString('base64');
-    } catch (err) {
-        throw new Error(`ECDSA signing failed: ${err instanceof Error ? err.message : String(err)}`);
+export function derToRawECDSA(der: Uint8Array): Uint8Array {
+    let pos = 0;
+    if (der[pos++] !== 0x30) {
+        throw new Error('Invalid DER sequence');
     }
+    // читаем длину (1‑ или 2‑байтный вариант)
+    let len = der[pos++];
+    if (len & 0x80) {
+        const n = len & 0x7f;
+        len = 0;
+        for (let i = 0; i < n; i++) {
+            len = (len << 8) | der[pos++];
+        }
+    }
+    // теперь должны идти два INTEGER‑а
+    if (der[pos++] !== 0x02) throw new Error('Expected INTEGER for R');
+    let rLen = der[pos++];
+    let rStart = pos;
+    pos += rLen;
+
+    if (der[pos++] !== 0x02) throw new Error('Expected INTEGER for S');
+    let sLen = der[pos++];
+    let sStart = pos;
+    //pos += sLen; // дальше нам не важно
+
+    const rBytes = der.slice(rStart, rStart + rLen);
+    const sBytes = der.slice(sStart, sStart + sLen);
+
+    // Приводим к ровно 32‑байтовым, обрезая или дополняя спереди нулями
+    function norm(buf: Uint8Array): Uint8Array {
+        if (buf.length === 32) return buf;
+        if (buf.length > 32) return buf.slice(buf.length - 32);
+        const tmp = new Uint8Array(32);
+        tmp.set(buf, 32 - buf.length);
+        return tmp;
+    }
+
+    return new Uint8Array([
+        ...norm(rBytes),
+        ...norm(sBytes),
+    ]);
 }
 
-// Вспомогательная функция для кодирования подписи в DER (ASN.1)
-function encodeECDSASignature(sig: DerSig): Buffer {
-    const ECDSASignature = asn1.define('ECDSASignature', function (this: any) {
-        this.seq().obj(
-            this.key('R').int(), // Соответствует полю R в DerSig
-            this.key('S').int(), // Соответствует полю S в DerSig
-        );
-    });
-
-    return ECDSASignature.encode(
+// Функция для подписи данных с помощью ECDSA
+export async function signDataWithECDSA(data: Uint8Array, privateKey: CryptoKey): Promise<string> {
+    // Подписываем данные
+    const signature = await crypto.subtle.sign(
         {
-            R: sig.R,
-            S: sig.S,
+            name: "ECDSA",
+            hash: {name: "SHA-256"}
         },
-        'der',
+        privateKey,
+        data
+    );
+
+    // Преобразуем сырую подпись в формат DER
+    const derSignature = rawECDSAToDER(new Uint8Array(signature));
+
+    // Кодируем в Base64
+    return btoa(String.fromCharCode(...derSignature));
+}
+
+export async function createSignature1(
+    clientRSAPublicKey: Uint8Array,
+    clientECDSAPublicKey: Uint8Array,
+    nonce1: Uint8Array,
+    ecdsaPrivateKey: CryptoKey
+): Promise<string> {
+    // Создаем буфер для объединенных данных
+    const combinedData = new Uint8Array(
+        clientRSAPublicKey.length + clientECDSAPublicKey.length + nonce1.length
+    );
+
+    // Копируем данные в буфер
+    combinedData.set(clientRSAPublicKey, 0);
+    combinedData.set(clientECDSAPublicKey, clientRSAPublicKey.length);
+    combinedData.set(nonce1, clientRSAPublicKey.length + clientECDSAPublicKey.length);
+
+    return await signDataWithECDSA(new Uint8Array(combinedData), ecdsaPrivateKey);
+}
+
+export function generateNonce(bytes: number): [string, Uint8Array] {
+    const nonce = new Uint8Array(bytes);
+    crypto.getRandomValues(nonce);
+    const base64 = btoa(String.fromCharCode(...nonce));
+    return [base64, nonce];
+}
+
+export async function encryptRSA(payload: Uint8Array, rsaPubServer: Uint8Array): Promise<string> {
+    // Импортируем публичный ключ
+    const publicKey = await crypto.subtle.importKey(
+        'spki',
+        rsaPubServer,
+        {
+            name: 'RSA-OAEP',
+            hash: 'SHA-256'
+        },
+        false,
+        ['encrypt']
+    );
+
+    // Шифруем payload
+    const encrypted = await crypto.subtle.encrypt(
+        {
+            name: 'RSA-OAEP'
+        },
+        publicKey,
+        payload
+    );
+
+    // Конвертируем ArrayBuffer в Base64
+    const encryptedArray = new Uint8Array(encrypted);
+    const binary = String.fromCharCode(...encryptedArray);
+    return btoa(binary);
+}
+
+export async function encryptAES256CBC(key: CryptoKey, iv: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
+    // Добавляем PKCS#7 padding
+    const blockSize = 16; // AES block size
+    const padLength = blockSize - (data.length % blockSize);
+    const padded = new Uint8Array(data.length + padLength);
+    padded.set(data);
+    padded.fill(padLength, data.length);
+
+    const ciphertext = await crypto.subtle.encrypt(
+        {
+            name: 'AES-CBC',
+            iv: iv
+        },
+        key,
+        padded
+    );
+
+    return new Uint8Array(ciphertext);
+}
+
+export async function deriveAESKey(keyMaterial: Uint8Array): Promise<CryptoKey> {
+    return await crypto.subtle.importKey(
+        'raw',
+        keyMaterial,
+        { name: 'AES-CBC', length: 256 },
+        false,
+        ['encrypt']
     );
 }
 
-export const generateRandomBytes = (size: number): [string, Buffer] => {
-    const buf = crypto.randomBytes(size);
-    return [buf.toString('base64'), buf];
-};
-
-export function encryptRSA(pubKey: string| KeyObject, plaintext: Buffer): string {
-    const encrypted = crypto.publicEncrypt(
+export async function deriveHMACKey(keyMaterial: Uint8Array): Promise<CryptoKey> {
+    return await crypto.subtle.importKey(
+        'raw',
+        keyMaterial,
         {
-            key: pubKey,
-            padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-            oaepHash: 'sha256',
+            name: 'HMAC',
+            hash: { name: 'SHA-256' }
         },
-        plaintext
+        false,
+        ['sign']
     );
-    return encrypted.toString('base64');
 }
 
-export function loadRSAPubDER(pem: Buffer): Buffer {
-    const publicKey = crypto.createPublicKey({
-        key: pem,
-        format: 'pem',
-        type: 'spki',
-    });
+export async function deriveKeyBytes(keyMaterial: Uint8Array, purpose: string): Promise<Uint8Array> {
+    const hmacKey = await crypto.subtle.importKey(
+        'raw',
+        keyMaterial,
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
 
-    return publicKey.export({ format: 'der', type: 'spki' }) as Buffer;
+    const purposeBytes = new TextEncoder().encode(purpose);
+    const signature = await crypto.subtle.sign(
+        'HMAC',
+        hmacKey,
+        purposeBytes
+    );
+
+    return new Uint8Array(signature);
 }
-
