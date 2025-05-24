@@ -17,6 +17,7 @@ export default class Store {
     isAuth = false;
     isLoading = false;
     hasCryptoKey = false;
+    platform: 'web' = 'web';
 
     constructor() {
         makeAutoObservable(this);
@@ -42,24 +43,24 @@ export default class Store {
     }
 
 
-    async login(email: string, password: string, platform: string) {
+    async login(email: string, password: string) {
             try {
-                const response = await AuthService.login(email, password, platform);
+                const response = await AuthService.login(email, password, this.platform);
                 localStorage.setItem('token', response.data.access_token);
                 this.setAuth(true);
 
             } catch (e) {
-                console.log(e);
+
             }
         }
 
-    async signup(email: string, password: string, platform: string) {
+    async signup(email: string, password: string) {
         try {
             const fileKey = await generateFileEncryptionKey();
             storeKey(fileKey);
             this.hasCryptoKey = true;
             const user_key = await encryptKeyWithPassword(fileKey, password);
-            const response = await AuthService.signup(email, password, user_key, platform);
+            const response = await AuthService.signup(email, password, user_key, this.platform);
             localStorage.setItem('token', response.data.access_token);
             this.setAuth(true);
 
@@ -92,7 +93,7 @@ export default class Store {
 
     async logout() {
         try {
-            await AuthService.logout();
+            await AuthService.logout(this.platform);
             localStorage.removeItem('token');
             localStorage.removeItem('lastPath');
             clearKey();
@@ -121,7 +122,7 @@ export default class Store {
             if (e.response?.status === 401) {
                 this.setAuth(false);
                 localStorage.removeItem('token');
-                console.log('Не удалось обновить токен: пользователь не авторизован.');
+                console.log('Не авторизован.');
             } else {
                 console.log('Ошибка авторизации:', e.response?.data?.message);
             }

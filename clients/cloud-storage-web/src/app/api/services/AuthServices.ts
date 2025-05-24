@@ -11,8 +11,8 @@ export default class AuthService {
         return auth.post<AuthResponse>('/user/signup', { email, password, user_key, platform });
     }
 
-    static async logout(): Promise<void> {
-        return auth.post('/user/logout');
+    static async logout(platform: 'web'): Promise<void> {
+        return auth.post('/user/logout', {platform});
     }
 
 }
