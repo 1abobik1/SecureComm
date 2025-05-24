@@ -1,2 +1,2 @@
-gen-docs-sc:
+gen-docs:
 	swag init -g cmd/main.go -o docs

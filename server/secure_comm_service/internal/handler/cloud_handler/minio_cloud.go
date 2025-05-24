@@ -1,6 +1,8 @@
 package cloud_handler
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -386,61 +388,61 @@ func (h *minioHandler) CreateOneEncrypted(c *gin.Context) {
 // @Failure      500  {object}  ErrorResponse   "Внутренняя ошибка сервера"
 // @Security     bearerAuth
 // @Router       /files/all [get]
-// func (h *minioHandler) GetAll(c *gin.Context) {
-// 	const op = "location internal.handler.minio_handler.minio.GetAll"
+func (h *minioHandler) GetAll(c *gin.Context) {
+	const op = "location internal.handler.minio_handler.minio.GetAll"
 
-// 	userID, err := utils.GetUserID(c)
-// 	if err != nil {
-// 		logrus.Errorf("Errors: %v", err)
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "the user's ID was not found in the token."})
-// 		return
-// 	}
+	userID, err := utils.GetUserID(c)
+	if err != nil {
+		logrus.Errorf("Errors: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "the user's ID was not found in the token."})
+		return
+	}
 
-// 	t := c.Query("type")
-// 	if t != "photo" && t != "unknown" && t != "video" && t != "text" {
-// 		logrus.Infof("Error: the passed type in the query parameter. It can only be one of these types {photo, unknown, video, text}")
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "the passed type in the query parameter. It can only be one of these types {photo, unknown, video, text}"})
-// 		return
-// 	}
+	t := c.Query("type")
+	if t != "photo" && t != "unknown" && t != "video" && t != "text" {
+		logrus.Infof("Error: the passed type in the query parameter. It can only be one of these types {photo, unknown, video, text}")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "the passed type in the query parameter. It can only be one of these types {photo, unknown, video, text}"})
+		return
+	}
 
-// 	fileResp, errs := h.minioService.GetAll(c, t, userID)
-// 	for _, err := range errs {
-// 		if err != nil {
-// 			logrus.Errorf("Error: %v,  %s", err, op)
+	fileResp, errs := h.minioService.GetAll(c, t, userID)
+	for _, err := range errs {
+		if err != nil {
+			logrus.Errorf("Error: %v,  %s", err, op)
 
-// 			if errors.Is(err, cloud_service.ErrFileNotFound) {
-// 				c.JSON(http.StatusNotFound, ErrorResponse{
-// 					Status:  http.StatusNotFound,
-// 					Error:   "File not found",
-// 					Details: fmt.Sprintf("%v", err.Error()),
-// 				})
-// 				return
-// 			}
+			if errors.Is(err, cloud_service.ErrFileNotFound) {
+				c.JSON(http.StatusNotFound, ErrorResponse{
+					Status:  http.StatusNotFound,
+					Error:   "File not found",
+					Details: fmt.Sprintf("%v", err.Error()),
+				})
+				return
+			}
 
-// 			if errors.Is(err, cloud_service.ErrForbiddenResource) {
-// 				c.JSON(http.StatusForbidden, ErrorResponse{
-// 					Status:  http.StatusForbidden,
-// 					Error:   "access to the requested resource is prohibited",
-// 					Details: err.Error(),
-// 				})
-// 				return
-// 			}
+			if errors.Is(err, cloud_service.ErrForbiddenResource) {
+				c.JSON(http.StatusForbidden, ErrorResponse{
+					Status:  http.StatusForbidden,
+					Error:   "access to the requested resource is prohibited",
+					Details: err.Error(),
+				})
+				return
+			}
 
-// 			c.JSON(http.StatusInternalServerError, ErrorResponse{
-// 				Status:  http.StatusInternalServerError,
-// 				Error:   "Enable to get many objects",
-// 				Details: err,
-// 			})
-// 			return
-// 		}
-// 	}
+			c.JSON(http.StatusInternalServerError, ErrorResponse{
+				Status:  http.StatusInternalServerError,
+				Error:   "Enable to get many objects",
+				Details: err,
+			})
+			return
+		}
+	}
 
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"status":    http.StatusOK,
-// 		"message":   "All Files received successfully",
-// 		"file_data": fileResp,
-// 	})
-// }
+	c.JSON(http.StatusOK, gin.H{
+		"status":    http.StatusOK,
+		"message":   "All Files received successfully",
+		"file_data": fileResp,
+	})
+}
 
 // DeleteOne удаляет один файл
 // @Summary      Удаление одного файла

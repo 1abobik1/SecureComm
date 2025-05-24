@@ -15,6 +15,77 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/files/all": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Возвращает пре‐подписанные ссылки на скачивание всех файлов заданной категории (photo, unknown, video, text).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Получение всех файлов категории",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Категория файлов (photo, unknown, video, text)",
+                        "name": "type",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список ссылок на все файлы категории",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.FileResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректная категория",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Файлы не найдены",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/files/one/encrypted": {
             "post": {
                 "security": [
@@ -291,6 +362,22 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "cloud_handler.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "description": "Дополнительные детали (при наличии)\nexample: \"field 'file' is required\""
+                },
+                "error": {
+                    "description": "Краткое описание ошибки\nexample: \"Invalid request\"",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "Код HTTP-статуса\nexample: 400",
+                    "type": "integer"
+                }
+            }
+        },
         "dto.BadRequestErr": {
             "type": "object",
             "properties": {
@@ -426,6 +513,14 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "\"Bearer {token}\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
