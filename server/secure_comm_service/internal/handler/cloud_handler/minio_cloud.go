@@ -459,58 +459,58 @@ func (h *minioHandler) GetAll(c *gin.Context) {
 // @Failure      500  {object}  ErrorResponse       "Внутренняя ошибка сервера"
 // @Security     bearerAuth
 // @Router       /files/one [delete]
-// func (h *minioHandler) DeleteOne(c *gin.Context) {
-// 	const op = "location internal.handler.minio_handler.minio.DeleteOne"
+func (h *minioHandler) DeleteOne(c *gin.Context) {
+	const op = "location internal.handler.minio_handler.minio.DeleteOne"
 
-// 	userID, err := utils.GetUserID(c)
-// 	if err != nil {
-// 		logrus.Errorf("Errors: %v", err)
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "the user's ID was not found in the token."})
-// 		return
-// 	}
+	userID, err := utils.GetUserID(c)
+	if err != nil {
+		logrus.Errorf("Errors: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "the user's ID was not found in the token."})
+		return
+	}
 
-// 	objectID := dto.ObjectID{
-// 		ObjID:        c.Query("id"),
-// 		FileCategory: c.Query("type"),
-// 	}
+	objectID := dto.ObjectID{
+		ObjID:        c.Query("id"),
+		FileCategory: c.Query("type"),
+	}
 
-// 	logrus.Infof("objectID... ID:%s, userID:%d, FileCategory:%s", objectID.ObjID, userID, objectID.FileCategory)
+	logrus.Infof("objectID... ID:%s, userID:%d, FileCategory:%s", objectID.ObjID, userID, objectID.FileCategory)
 
-// 	_, err = h.minioService.DeleteOne(c, objectID, userID)
-// 	if err != nil {
-// 		logrus.Errorf("Error: %v,  %s", err, op)
+	_, err = h.minioService.DeleteOne(c, objectID, userID)
+	if err != nil {
+		logrus.Errorf("Error: %v,  %s", err, op)
 
-// 		if errors.Is(err, cloud_service.ErrFileNotFound) {
-// 			c.JSON(http.StatusNotFound, ErrorResponse{
-// 				Status:  http.StatusNotFound,
-// 				Error:   "File not found",
-// 				Details: fmt.Sprintf("%v", err.Error()),
-// 			})
-// 			return
-// 		}
+		if errors.Is(err, cloud_service.ErrFileNotFound) {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Status:  http.StatusNotFound,
+				Error:   "File not found",
+				Details: fmt.Sprintf("%v", err.Error()),
+			})
+			return
+		}
 
-// 		if errors.Is(err, cloud_service.ErrForbiddenResource) {
-// 			c.JSON(http.StatusForbidden, ErrorResponse{
-// 				Status:  http.StatusForbidden,
-// 				Error:   "access to the requested resource is prohibited",
-// 				Details: err.Error(),
-// 			})
-// 			return
-// 		}
+		if errors.Is(err, cloud_service.ErrForbiddenResource) {
+			c.JSON(http.StatusForbidden, ErrorResponse{
+				Status:  http.StatusForbidden,
+				Error:   "access to the requested resource is prohibited",
+				Details: err.Error(),
+			})
+			return
+		}
 
-// 		c.JSON(http.StatusInternalServerError, ErrorResponse{
-// 			Status:  http.StatusInternalServerError,
-// 			Error:   "Cannot delete the object",
-// 			Details: err,
-// 		})
-// 		return
-// 	}
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Status:  http.StatusInternalServerError,
+			Error:   "Cannot delete the object",
+			Details: err,
+		})
+		return
+	}
 
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"status":  http.StatusOK,
-// 		"message": "File deleted successfully",
-// 	})
-// }
+	c.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "File deleted successfully",
+	})
+}
 
 // DeleteMany удаляет несколько файлов
 // @Summary      Удаление нескольких файлов
