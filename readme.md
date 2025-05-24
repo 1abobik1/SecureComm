@@ -62,8 +62,8 @@ ACCESS_TOKEN_TTL=15m
 REFRESH_TOKEN_TTL=720h
 PUBLIC_KEY_PATH=public_key.pem
 PRIVATE_KEY_PATH=private_key.pem
-EXTERNAL_WEB_CLIENT=http://secure-comm-service:8080/web/ks
-EXTERNAL_TG_CLIENT=http://secure-comm-service:8080/tg-bot/ks
+EXTERNAL_WEB_CLIENT=http://secure_comm_service:8080/web/ks
+EXTERNAL_TG_CLIENT=http://secure_comm_service:8080/tg-bot/ks
 ```
 > **Важно:** Замените `MyPASS` на ваш реальный пароль от PostgreSQL.
 > После запуска сервер будет доступен по адресу `http://localhost:8081`

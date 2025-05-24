@@ -171,7 +171,6 @@ func main() {
 		routesFileApi := authGroup.Group("/files")
 		{
 			routesFileApi.POST("/one/encrypted", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOneEncrypted)
-			routesFileApi.POST("/one", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOne)
 			// … и остальные /files/… роуты с тем же JWTMiddleware …
 		}
 

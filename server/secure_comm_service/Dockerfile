@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o securecomm cmd/server/main.go
+RUN go build -o securecomm cmd/main.go
 
 FROM alpine:3.17
 

@@ -1,2 +1,2 @@
 gen-docs-sc:
-	swag init -g cmd/server/main.go -o docs
+	swag init -g cmd/main.go -o docs
