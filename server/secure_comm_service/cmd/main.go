@@ -41,6 +41,11 @@ func init() {
 // @version         1.0
 // @description     Документация о внутренней реализации и логики работы находится в папке docs
 // @host      localhost:8080
+//
+// @securityDefinitions.apikey BearerAuth
+// @in                         header
+// @name                       Authorization
+// @description                "Bearer {token}"
 func main() {
 	// загрузка конфига
 	cfg := config.MustLoad()
@@ -171,7 +176,8 @@ func main() {
 		routesFileApi := authGroup.Group("/files")
 		{
 			routesFileApi.POST("/one/encrypted", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOneEncrypted)
-			// … и остальные /files/… роуты с тем же JWTMiddleware …
+			routesFileApi.GET("/all", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetAll)
+			routesFileApi.DELETE("/all", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteOne)
 		}
 
 		webClientApi := authGroup.Group("/web")

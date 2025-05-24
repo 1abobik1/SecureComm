@@ -21,19 +21,19 @@ import (
 
 // @title           File Upload Service API
 // @version         1.0
-// @description     API для загрузки, получения и удаления файлов в облачном хранилище MinIO.
+// @description     API для загрузки, получения и удаления файлов …
 // @termsOfService  http://example.com/terms/
-
-// @contact.name   API Support
-// @contact.url    http://www.example.com/support
-// @contact.email  support@example.com
-
-// @license.name  Apache 2.0
-// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
-
+//
+// @contact.name    API Support
+// @contact.url     http://www.example.com/support
+// @contact.email   support@example.com
+//
+// @license.name    Apache 2.0
+// @license.url     http://www.apache.org/licenses/LICENSE-2.0.html
+//
 // @host      localhost:8080
 // @BasePath  /
-
+//
 // @securityDefinitions.apikey  bearerAuth
 // @in                          header
 // @name                        Authorization
