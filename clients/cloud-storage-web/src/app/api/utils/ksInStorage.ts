@@ -4,12 +4,7 @@ export function setKs(value: CryptoKey, ttlSeconds: number) {
     LocalStorage.put('ks', value, ttlSeconds);
 }
 
-export function setKsLogin(value: {
-    k_enc_iv: Uint8Array;
-    k_enc_data: Uint8Array;
-    k_mac_iv: Uint8Array;
-    k_mac_data: Uint8Array;
-}, ttlSeconds: number) {
+export function setKsLogin(value: Uint8Array<ArrayBufferLike>[], ttlSeconds: number) {
     LocalStorage.put('ks', value, ttlSeconds);
 }
 

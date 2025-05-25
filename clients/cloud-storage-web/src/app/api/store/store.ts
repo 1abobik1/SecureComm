@@ -3,9 +3,9 @@ import AuthService from "@/app/api/services/AuthServices";
 import axios from 'axios';
 import {AuthResponse} from "../models/response/AuthResponse";
 import {AUTH_API_URL} from "@/app/api/http/urls";
-import {decryptKsDataLogin, encryptAndStoreKey, importKeyFromBase64} from '@/app/api/utils/EncryptDecryptKey';
+import {decryptStoredKeyLogin, encryptAndStoreKey, importKeyFromBase64} from '@/app/api/utils/EncryptDecryptKey';
 import {doHandshake} from "@/app/api/services/HandshakeService/HandshakeService";
-import {removeKs, setKs, setKsLogin} from "@/app/api/utils/ksInStorage";
+import {removeKs, setKs} from "@/app/api/utils/ksInStorage";
 
 
 export default class Store {
@@ -33,8 +33,7 @@ export default class Store {
                 const response = await AuthService.login(email, password, this.platform);
                 const encryptedKs = response.data.ks;
                 localStorage.setItem('encryptedFileKey', JSON.stringify(encryptedKs));
-                const decryptedKs = await decryptKsDataLogin(encryptedKs, password);
-                setKsLogin(decryptedKs, 60 * 8);
+                await decryptStoredKeyLogin(encryptedKs, password);
                 localStorage.setItem('token', response.data.access_token);
                 this.setAuth(true);
             } catch (e) {

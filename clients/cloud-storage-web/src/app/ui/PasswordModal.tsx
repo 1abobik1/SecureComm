@@ -1,9 +1,9 @@
 'use client';
 
-import React, {forwardRef, useContext, useImperativeHandle, useState} from 'react';
+import React, {forwardRef, useImperativeHandle, useState} from 'react';
 import {X} from 'lucide-react';
 import {observer} from 'mobx-react-lite';
-import {Context} from '@/app/_app';
+import {decryptStoredKey} from "@/app/api/utils/EncryptDecryptKey";
 
 export interface PasswordModalRef {
     open: () => void;
@@ -19,7 +19,6 @@ interface PasswordModalProps {
 // eslint-disable-next-line react/display-name
 const PasswordModal = observer(forwardRef<PasswordModalRef, PasswordModalProps>(
     ({ onSubmit, title = 'Введите пароль', description }, ref) => {
-        const { store } = useContext(Context);
         const [isVisible, setIsVisible] = useState(false);
         const [password, setPassword] = useState('');
         const [error, setError] = useState<string | null>(null);
@@ -45,7 +44,7 @@ const PasswordModal = observer(forwardRef<PasswordModalRef, PasswordModalProps>(
                 if (onSubmit) {
                     success = await onSubmit(password);
                 } else {
-                    success = await store.decryptAndStoreKey(password);
+                    success = await decryptStoredKey(password);
                 }
 
                 if (success) {

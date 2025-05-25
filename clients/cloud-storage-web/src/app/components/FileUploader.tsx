@@ -7,7 +7,9 @@ import {cryptoHelper} from "@/app/api/utils/CryptoHelper";
 import PasswordModal, {PasswordModalRef} from "@/app/ui/PasswordModal";
 import {observer} from 'mobx-react-lite';
 import {Context} from '@/app/_app';
-import { useUsageRefresh } from './UsageRefreshContext';
+import {useUsageRefresh} from './UsageRefreshContext';
+import {decryptStoredKey} from "@/app/api/utils/EncryptDecryptKey";
+
 const FileUploader = observer(() => {
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<PasswordModalRef>(null);
@@ -19,7 +21,7 @@ const FileUploader = observer(() => {
    const { triggerRefresh } = useUsageRefresh();
   const handlePasswordSuccess = async (password: string): Promise<boolean> => {
     try {
-      const success = await store.decryptAndStoreKey(password);
+      const success = await decryptStoredKey(password);
       if (success) {
         // После успешного ввода пароля сразу открываем проводник
         setTimeout(() => {
@@ -115,7 +117,7 @@ const FileUploader = observer(() => {
             ref={modalRef}
             onSubmit={handlePasswordSuccess}
             title="Для загрузки файлов введите пароль"
-            description="Этот аккаунт защищен шифрованием. Для продолжения требуется ваш пароль."
+            description="Сессия истекла. Для продолжения требуется ваш пароль."
         />
 
         <div className="max-w-md mx-auto text-center">

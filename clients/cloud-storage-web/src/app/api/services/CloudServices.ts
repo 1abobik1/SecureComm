@@ -1,5 +1,5 @@
 import {AxiosResponse} from 'axios';
-import {CloudResponse, OneFileResponse} from "@/app/api/models/response/CloudResponse";
+import {CloudResponse} from "@/app/api/models/response/CloudResponse";
 import {cloudApi} from '@/app/api/http/cloud';
 
 export default class CloudService {
@@ -8,14 +8,8 @@ export default class CloudService {
     }
 
 
-    static async getOneFile(id:string,type: string): Promise<AxiosResponse<CloudResponse>> {
-        return await cloudApi.get<CloudResponse>(`/files/one?id=${id}type=${type}`);
-    }
-                                                    
-
-
     static async uploadFiles(formData: FormData, config = {}) {
-        return await cloudApi.post(`/files/many`, formData, {
+        return await cloudApi.post(`/files/one/encrypted`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },

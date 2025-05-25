@@ -37,7 +37,7 @@ const DiskUsageChart: React.FC<DiskUsageChartProps> = ({ fileCounts }) => {
     const decoded: JwtPayload = jwtDecode(token);
     const userId = decoded.user_id;
 
-    fetch(`http://localhost:8081/user/${userId}/usage`, {
+    fetch(`http://localhost:8080/user/${userId}/usage`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

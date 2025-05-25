@@ -1,11 +1,12 @@
-import React, {useContext, useRef, useState} from 'react';
+import React, {useRef, useState} from 'react';
 import CloudService from '../api/services/CloudServices';
 import {ArrowDownTrayIcon, TrashIcon} from '@heroicons/react/24/outline';
 import ModalDelete from './ModalDelete';
 import TypeFileIcon from './TypeFileIcon';
 import {cryptoHelper} from '@/app/api/utils/CryptoHelper';
 import PasswordModal, {PasswordModalRef} from '@/app/ui/PasswordModal';
-import {Context} from '@/app/_app';
+import {decryptStoredKey} from "@/app/api/utils/EncryptDecryptKey";
+import {getKs} from "@/app/api/utils/ksInStorage";
 
 export type FileCardData = {
   name: string;
@@ -22,7 +23,7 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [action, setAction] = useState<'view' | 'download' | null>(null);
   const passwordModalRef = useRef<PasswordModalRef>(null);
-  const { store } = useContext(Context);
+  const ks = getKs();
 
   const performDownload = async () => {
     try {
@@ -74,9 +75,8 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
   const handleDownload = async () => {
     try {
       setDownloadError(null);
-      await store.initializeKey();
 
-      if (!store.hasCryptoKey) {
+      if (!ks) {
         setAction('download');
         passwordModalRef.current?.open();
         return;
@@ -92,9 +92,8 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
   const handleView = async () => {
     try {
       setDownloadError(null);
-      await store.initializeKey();
 
-      if (!store.hasCryptoKey) {
+      if (!ks) {
         setAction('view');
         passwordModalRef.current?.open();
         return;
@@ -109,7 +108,7 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
 
   const handlePasswordSubmit = async (password: string) => {
     try {
-      const success = await store.decryptAndStoreKey(password);
+      const success = await decryptStoredKey(password);
       if (!success) {
         setDownloadError('Неверный пароль');
         return false;
@@ -155,7 +154,7 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
             ref={passwordModalRef}
             onSubmit={handlePasswordSubmit}
             title="Для скачивания или просмотра введите пароль"
-            description="Этот файл защищен шифрованием. Для доступа требуется ваш пароль."
+            description="Сессия истекла. Для продолжения требуется ваш пароль."
         />
         <div className="p-4 bg-white border-t border-b border-gray-200 w-full">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">

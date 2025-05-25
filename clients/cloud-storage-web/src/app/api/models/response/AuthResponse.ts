@@ -1,6 +1,5 @@
 export interface AuthResponse {
     access_token: string;
-    refreshToken: string;
     ks:{
         k_enc_iv: string;
         k_enc_data: string;
