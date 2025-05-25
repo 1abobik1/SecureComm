@@ -34,11 +34,11 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handl
 		// Файловое API
 		routesFileApi := authGroup.Group("/files")
 		{
-			routesFileApi.POST("/one/encrypted", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOneEncrypted)
-			routesFileApi.GET("/all", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetAll)
-			routesFileApi.GET("/one", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetOne)
-			routesFileApi.DELETE("/one", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteOne)
-			routesFileApi.DELETE("/many", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteMany)
+			routesFileApi.POST("/one/encrypted", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOneEncrypted)
+			routesFileApi.GET("/all", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetAll)
+			routesFileApi.GET("/one", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetOne)
+			routesFileApi.DELETE("/one", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteOne)
+			routesFileApi.DELETE("/many", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteMany)
 		}
 
 		webClientApi := authGroup.Group("/web")
@@ -54,7 +54,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handl
 		quotaApi := authGroup.Group("/user")
 		{
 			quotaApi.POST("/:id/plan/init", quotaHandler.InitUserPlan)
-			quotaApi.GET("/:id/usage", quotaHandler.GetUserUsage)
+			quotaApi.GET("/:id/usage", toll_gin.LimitHandler(sessionLimiter), quotaHandler.GetUserUsage)
 		}
 	}
 }
