@@ -28,7 +28,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handl
 		hsGroup := authGroup.Group("/handshake")
 		{
 			hsGroup.POST("/init", toll_gin.LimitHandler(hsLimiter), hsHandler.Init)
-			hsGroup.POST("/finalize", middleware.RequireClientID(), toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
+			hsGroup.POST("/finalize", toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
 		}
 
 		// Session test
@@ -37,7 +37,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handl
 
 		sGroup := authGroup.Group("/session")
 		{
-			sGroup.POST("/test", middleware.RequireClientID(), toll_gin.LimitHandler(sessionLimiter), hsHandler.SessionTester)
+			sGroup.POST("/test", toll_gin.LimitHandler(sessionLimiter), hsHandler.SessionTester)
 		}
 
 		// Файловое API
