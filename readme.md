@@ -44,6 +44,12 @@ MINIO_ROOT_USER=minioadmin
 MINIO_ROOT_PASSWORD=minioadmin
 MINIO_USE_SSL=false
 MINIO_URL_LIFETIME=8h
+
+#Postgres параметры
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=dima15042004
+POSTGRES_DB=cloud_service
+STORAGE_PATH=postgres://postgres:dima15042004@user_usage_db:5432/cloud_service?sslmode=disable
 ```
 > После запуска сервер будет доступен по адресу `http://localhost:8080`
 
@@ -64,6 +70,7 @@ PUBLIC_KEY_PATH=public_key.pem
 PRIVATE_KEY_PATH=private_key.pem
 EXTERNAL_WEB_CLIENT=http://secure_comm_service:8080/web/ks
 EXTERNAL_TG_CLIENT=http://secure_comm_service:8080/tg-bot/ks
+QUOTA_SERVICE_URL=http://secure_comm_service:8080
 ```
 > **Важно:** Замените `MyPASS` на ваш реальный пароль от PostgreSQL.
 > После запуска сервер будет доступен по адресу `http://localhost:8081`

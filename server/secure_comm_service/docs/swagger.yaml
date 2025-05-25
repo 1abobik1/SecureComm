@@ -106,6 +106,13 @@ definitions:
       error:
         type: string
     type: object
+  dto.ObjectIDs:
+    properties:
+      object_ids:
+        items:
+          type: string
+        type: array
+    type: object
   dto.SessionMessageReq:
     properties:
       client_signature:
@@ -123,6 +130,19 @@ definitions:
     properties:
       error:
         type: string
+    type: object
+  dto.UserUsage:
+    properties:
+      current_used_gb:
+        type: integer
+      current_used_kb:
+        type: integer
+      current_used_mb:
+        type: integer
+      plan_name:
+        type: string
+      storage_limit_gb:
+        type: integer
     type: object
 host: localhost:8080
 info:
@@ -179,6 +199,54 @@ paths:
       summary: Получение всех файлов категории
       tags:
       - Files
+  /files/many:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет несколько объектов из MinIO, переданных в JSON-массиве,
+        и снижает использование квоты.
+      parameters:
+      - description: Bearer {token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Массив идентификаторов объектов
+        in: body
+        name: objectIDs
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ObjectIDs'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Файлы успешно удалены
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Некорректный JSON в теле запроса
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+        "403":
+          description: Доступ запрещён
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+        "404":
+          description: Один из файлов не найден
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Удаление нескольких файлов
+      tags:
+      - Files
   /files/one:
     delete:
       description: Удаляет один объект из MinIO и снижает использование квоты.
@@ -226,6 +294,53 @@ paths:
       security:
       - bearerAuth: []
       summary: Удаление одного файла
+      tags:
+      - Files
+    get:
+      description: Возвращает пре‐подписанную ссылку на скачивание одного файла по
+        ID и типу.
+      parameters:
+      - description: Bearer {token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Идентификатор объекта
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: Категория файла (photo, unknown, video, text)
+        in: query
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Ссылка на скачивание файла
+          schema:
+            $ref: '#/definitions/dto.FileResponse'
+        "400":
+          description: Некорректный запрос
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+        "403":
+          description: Доступ запрещён
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+        "404":
+          description: Файл не найден
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/cloud_handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: Получение одного файла
       tags:
       - Files
   /files/one/encrypted:
@@ -450,6 +565,106 @@ paths:
       summary: Тестовое расшифрование и проверка целостности сессионного сообщения
       tags:
       - session
+  /user/{id}/plan/init:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт для пользователя с переданным ID бесплатный план хранения
+        объёмом до 10 GiB. Если план уже существует, операция игнорируется.
+      parameters:
+      - description: Bearer {token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created — план успешно инициализирован
+          schema:
+            type: string
+        "400":
+          description: Некорректный ID пользователя
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Ошибка авторизации или токен не предоставлен
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Инициализация бесплатного плана (10 GiB) пользователя
+      tags:
+      - Quota
+  /user/{id}/usage:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает, сколько гигабайт, мегабайт и килобайт хранится у пользователя,
+        а также лимит (10 GiB для бесплатного плана) и имя плана.
+      parameters:
+      - description: Bearer {token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID пользователя
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация об использовании дискового пространства
+          schema:
+            $ref: '#/definitions/dto.UserUsage'
+        "400":
+          description: Некорректный ID пользователя
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Ошибка авторизации или токен не предоставлен
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Пользователь не найден
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получение текущего использования диска пользователя
+      tags:
+      - Quota
 securityDefinitions:
   BearerAuth:
     description: '"Bearer {token}"'

@@ -10,6 +10,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type PostgresConfig struct {
+	StoragePath string `env:"STORAGE_PATH" env-required:"true"`
+}
+
 type JWTConfig struct {
 	PublicKeyPath string `env:"JWT_PUBLIC_KEY_PATH" env-required:"true"`
 }
@@ -56,6 +60,7 @@ type SessionLimiter struct {
 }
 
 type Config struct {
+	Postges    PostgresConfig
 	JWT        JWTConfig
 	Minio      MinIoConfig
 	Redis      RedisConfig
