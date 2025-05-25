@@ -8,6 +8,7 @@ import (
 	"github.com/1abobik1/AuthService/internal/external_api"
 	handlerToken "github.com/1abobik1/AuthService/internal/handler/http/token"
 	handlerUsers "github.com/1abobik1/AuthService/internal/handler/http/users"
+	"github.com/1abobik1/AuthService/internal/middleware"
 	serviceToken "github.com/1abobik1/AuthService/internal/service/token"
 	serviceUsers "github.com/1abobik1/AuthService/internal/service/users"
 	"github.com/1abobik1/AuthService/internal/storage/postgresql"
@@ -75,7 +76,7 @@ func main() {
 	}))
 
 	r.POST("/user/signup", userHandler.SignUp)
-	r.POST("/user/login", userHandler.Login)
+	r.POST("/user/login", middleware.NewIPRateLimiter(cfg.LoginLimiterMaxReqs, cfg.LoginLimiterBurst, cfg.LoginLimiterPeriod),userHandler.Login)
 	r.POST("/user/logout", userHandler.Logout)
 
 	r.POST("/token/update", tokenHandler.TokenUpdate)

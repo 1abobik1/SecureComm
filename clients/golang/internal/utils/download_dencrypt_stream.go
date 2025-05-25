@@ -22,7 +22,6 @@ func DownloadAndDecryptStream(presignedURL, outPath string, kEnc, kMac []byte) e
 	if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
 		return err
 	}
-	// GET
 	resp, err := http.Get(presignedURL)
 	if err != nil {
 		return err
