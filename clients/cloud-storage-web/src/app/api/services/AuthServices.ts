@@ -7,8 +7,8 @@ export default class AuthService {
         return auth.post<AuthResponse>('/user/login', { email, password, platform });
     }
 
-    static async signup(email: string, password: string, user_key:string, platform: string): Promise<AxiosResponse<AuthResponse>> {
-        return auth.post<AuthResponse>('/user/signup', { email, password, user_key, platform });
+    static async signup(email: string, password: string, platform: string): Promise<AxiosResponse<AuthResponse>> {
+        return auth.post<AuthResponse>('/user/signup', { email, password, platform });
     }
 
     static async logout(platform: 'web'): Promise<void> {

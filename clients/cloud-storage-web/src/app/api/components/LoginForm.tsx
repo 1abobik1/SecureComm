@@ -4,20 +4,9 @@ import {Context} from '@/app/_app';
 import {observer} from "mobx-react-lite";
 
 const LoginForm = () => {
-  const [platform, setPlatform] = useState('ios-mobile');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { store } = useContext(Context);
-
-
-    const [captchaVerified, setCaptchaVerified] = useState(false);
-
-    const handleCaptchaChange = (value: string | null) => {
-      if (value) {
-        setCaptchaVerified(true);
-      }
-    };
-
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">

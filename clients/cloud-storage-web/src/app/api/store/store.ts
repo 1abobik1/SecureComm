@@ -3,13 +3,11 @@ import AuthService from "@/app/api/services/AuthServices";
 import axios from 'axios';
 import {AuthResponse} from "../models/response/AuthResponse";
 import {AUTH_API_URL} from "@/app/api/http/urls";
-import {
-    decryptKeyWithPassword,
-    encryptKeyWithPassword,
-    generateFileEncryptionKey
-} from '@/app/api/utils/EncryptDecryptKey';
-import {clearKey, getStoredKey, storeKey} from "@/app/api/utils/KeyStorage";
+import {decryptKeyWithPassword, encryptKeyWithPassword, generateEncryptionKey} from '@/app/api/utils/EncryptDecryptKey';
+import {clearKey, getStoredKey} from "@/app/api/utils/KeyStorage";
 import {getEncryptedKeyFromToken} from "@/app/api/utils/KeyFromToken";
+import {doHandshake} from "@/app/api/services/HandshakeService/HandshakeService";
+import {setKs} from "@/app/api/utils/ksInStorage";
 
 
 export default class Store {
@@ -56,14 +54,13 @@ export default class Store {
 
     async signup(email: string, password: string) {
         try {
-            const fileKey = await generateFileEncryptionKey();
-            storeKey(fileKey);
-            this.hasCryptoKey = true;
-            const user_key = await encryptKeyWithPassword(fileKey, password);
-            const response = await AuthService.signup(email, password, user_key, this.platform);
+            const ks64 = await doHandshake();
+            const ksKey = await generateEncryptionKey();
+            const ksKeyEnc = await encryptKeyWithPassword()
+            const response = await AuthService.signup(email, password, this.platform);
             localStorage.setItem('token', response.data.access_token);
+            setKs(ksKey, 60 * 10)
             this.setAuth(true);
-
 
         } catch (e) {
             console.log(e.response?.data?.message);

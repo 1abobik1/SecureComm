@@ -10,12 +10,12 @@ import {postJSON} from "../utils/postJSON"
 import {IInitResponse} from "../models/response/IInitResponse";
 import {AxiosResponse} from "axios";
 
-export async function doSessionTest(
+export async function doSession(
     sesURL: string,
     initResp: IInitResponse,
     ecdsaPriv: CryptoKey,
     ks: string,
-    payload: string
+    payload: Uint8Array
 ): Promise<string> {
     // 1. Подготовка данных (timestamp + nonce + payload)
     const timestamp = new Uint8Array(8);
@@ -28,8 +28,7 @@ export async function doSessionTest(
     const [__, iv] = generateNonce(16);
 
     // Формируем blob = timestamp + nonce + payload
-    const payloadBytes = new TextEncoder().encode(payload);
-    const blob = new Uint8Array([...timestamp, ...nonce, ...payloadBytes]);
+    const blob = new Uint8Array([...timestamp, ...nonce, ...payload]);
 
     // 2. Деривация ключей из ks
     const ksBytes = Uint8Array.from(atob(ks), c => c.charCodeAt(0));

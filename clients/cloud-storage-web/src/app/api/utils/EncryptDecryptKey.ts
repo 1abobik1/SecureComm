@@ -1,7 +1,7 @@
 // Генерация ключа для шифрования файлов (AES-256)
 import {storeKey} from "@/app/api/utils/KeyStorage";
 
-export async function generateFileEncryptionKey(): Promise<CryptoKey> {
+export async function generateEncryptionKey(): Promise<CryptoKey> {
     return await window.crypto.subtle.generateKey(
         {
             name: "AES-GCM",
