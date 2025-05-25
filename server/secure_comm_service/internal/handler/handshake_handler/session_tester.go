@@ -41,7 +41,7 @@ import (
 // @Failure     500              {object}  dto.InternalServerErr    "Внутренняя ошибка сервера"
 // @Security     bearerAuth
 // @Router      /session/test [post]
-func (h *handler) SessionTester(c *gin.Context) {
+func (h *HSHandler) SessionTester(c *gin.Context) {
 	var req dto.SessionMessageReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.HandleBindError(c, err)

@@ -42,7 +42,7 @@ import (
 // @Failure     500     {object}  dto.InternalServerErr  "Внутренняя ошибка сервера"
 // @Security    bearerAuth
 // @Router      /handshake/init [post]
-func (h *handler) Init(c *gin.Context) {
+func (h *HSHandler) Init(c *gin.Context) {
 	const op = "location internal.handler.handshake.Init"
 
 	var req dto.HandshakeInitReq
@@ -117,7 +117,7 @@ func (h *handler) Init(c *gin.Context) {
 // @Failure      500         {object}  dto.InternalServerErr       "Внутренняя ошибка сервера"
 // @Security     bearerAuth
 // @Router       /handshake/finalize [post]
-func (h *handler) Finalize(c *gin.Context) {
+func (h *HSHandler) Finalize(c *gin.Context) {
 	var req dto.HandshakeFinalizeReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.HandleBindError(c, err)

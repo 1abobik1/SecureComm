@@ -10,10 +10,10 @@ type Service interface {
 	DecryptWithSession(ctx context.Context, clientID string, signature, blob []byte) ([]byte, error)
 }
 
-type handler struct {
+type HSHandler struct {
 	svc Service
 }
 
-func NewHandler(svc Service) *handler {
-	return &handler{svc: svc}
+func NewHandler(svc Service) *HSHandler {
+	return &HSHandler{svc: svc}
 }

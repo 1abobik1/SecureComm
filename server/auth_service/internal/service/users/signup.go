@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/1abobik1/AuthService/internal/external_api"
 	"github.com/1abobik1/AuthService/internal/storage"
 	"github.com/1abobik1/AuthService/internal/utils"
 	"golang.org/x/crypto/bcrypt"
@@ -46,6 +47,11 @@ func (s *userService) Register(ctx context.Context, email, password, platform st
 	if err := s.userStorage.UpsertRefreshToken(ctx, refreshToken, userID, platform); err != nil {
 		log.Printf("Error upserting refresh token in db: %v", err)
 		return "", "", fmt.Errorf("error upserting refresh token in db: %w", err)
+	}
+
+	if err := external_api.NotifyQuotaService(s.cfg.QuotaServiceURL, userID, accessToken); err != nil {
+		log.Printf("warning: failed to init free plan for user %d: %v", userID, err)
+		return "", "", fmt.Errorf("failed to init free plan for user %d: %v", userID, err)
 	}
 
 	return accessToken, refreshToken, nil

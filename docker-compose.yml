@@ -25,6 +25,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      user_usage_db:
+        condition: service_started
     volumes:
       - ./server/secure_comm_service/internal/keys:/root/keys:rw
     restart: unless-stopped
@@ -58,6 +60,19 @@ services:
     networks:
       - app-network
 
+  user_usage_db:
+    container_name: user_usage_db
+    image: postgres:14-alpine
+    env_file:
+      - ./server/secure_comm_service/.env
+    volumes:
+      - user_usage_data:/var/lib/postgresql/data
+      - ./server/secure_comm_service/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    ports:
+      - "5434:5432"
+    networks:
+      - app-network
+
   minio:
     container_name: minio
     image: minio/minio
@@ -79,7 +94,7 @@ services:
 
 volumes:
   auth_db_data:
-  file_upload_db_data:
+  user_usage_data:
   minio_data:
   redis_data:
 

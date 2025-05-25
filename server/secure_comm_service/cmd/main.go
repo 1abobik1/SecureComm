@@ -10,13 +10,15 @@ import (
 	"github.com/1abobik1/SecureComm/internal/checker"
 	"github.com/1abobik1/SecureComm/internal/handler/cloud_handler"
 	"github.com/1abobik1/SecureComm/internal/handler/handshake_handler"
-	"github.com/1abobik1/SecureComm/internal/middleware"
+	"github.com/1abobik1/SecureComm/internal/handler/quota_handler"
 	"github.com/1abobik1/SecureComm/internal/repository/client_keystore"
 	"github.com/1abobik1/SecureComm/internal/repository/nonce_store"
 	"github.com/1abobik1/SecureComm/internal/repository/server_keystore"
 	"github.com/1abobik1/SecureComm/internal/repository/session_store"
+	"github.com/1abobik1/SecureComm/internal/routes"
 	"github.com/1abobik1/SecureComm/internal/service/cloud_service"
 	"github.com/1abobik1/SecureComm/internal/service/handshake_service"
+	"github.com/1abobik1/SecureComm/internal/service/quota_service"
 	"github.com/gin-contrib/cors"
 	"github.com/go-redis/redis/v8"
 
@@ -26,7 +28,6 @@ import (
 
 	tb "github.com/didip/tollbooth/v7"
 	"github.com/didip/tollbooth/v7/limiter"
-	toll_gin "github.com/didip/tollbooth_gin"
 
 	_ "github.com/1abobik1/SecureComm/docs"
 	swaggerFiles "github.com/swaggo/files"
@@ -107,14 +108,22 @@ func main() {
 	if err := minioService.InitMinio(cfg.Minio.Port, cfg.Minio.RootUser, cfg.Minio.RootPassword, cfg.Minio.UseSSL); err != nil {
 		log.Fatalf("minio init error: %v", err)
 	}
-	// хендлерный слой cloud_handler
-	minioHandler := cloud_handler.NewMinioHandler(minioService)
 
+	// сервисный слой qouta
+	quotaService, err := quota_service.NewQuotaService(cfg.Postges.StoragePath)
+	if err != nil {
+		panic(err)
+	}
+
+	// хендлерный слой quota
+	quotaHandler := quota_handler.NewQuotaHandler(quotaService)
+	// хендлерный слой cloud_handler
+	minioHandler := cloud_handler.NewMinioHandler(minioService, quotaService)
 	// сервисный слой handshake
 	hsService := handshake_service.NewService(hsNonceStore, sesNonceStore, serverKeys, clientKeys, sessionStore)
 	// хендлерный слой handshake
 	hsHandler := handshake_handler.NewHandler(hsService)
-
+	// внешние клиенты
 	webClient := api.NewWEBClientKeysAPI(sessionStore)
 	tgClient := api.NewTGClientKeysAPI(sessionStore)
 
@@ -126,7 +135,7 @@ func main() {
 		"Header:X-Client-ID",
 		"RemoteAddr",
 	})
-
+	// limiter для /session/test
 	sessionLimiter := tb.NewLimiter(cfg.SesLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.SesLimiter.TTL})
 	sessionLimiter.SetBurst(cfg.SesLimiter.Burst)
 	// limiter сначала пробует сделать лимит по client_id, если его нет в header, то по ip
@@ -150,46 +159,8 @@ func main() {
 	// свагер документация
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	authGroup := r.Group("/")
-	authGroup.Use(middleware.JWTMiddleware(cfg.JWT.PublicKeyPath))
-	{
-		// Handshake
-		hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
-		hsLimiter.SetBurst(cfg.HSLimiter.Burst)
-
-		hsGroup := authGroup.Group("/handshake")
-		{
-			hsGroup.POST("/init", toll_gin.LimitHandler(hsLimiter), hsHandler.Init)
-			hsGroup.POST("/finalize", middleware.RequireClientID(), toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
-		}
-
-		// Session test
-		sessionLimiter := tb.NewLimiter(cfg.SesLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.SesLimiter.TTL})
-		sessionLimiter.SetBurst(cfg.SesLimiter.Burst)
-
-		sGroup := authGroup.Group("/session")
-		{
-			sGroup.POST("/test", middleware.RequireClientID(), toll_gin.LimitHandler(sessionLimiter), hsHandler.SessionTester)
-		}
-
-		// Файловое API
-		routesFileApi := authGroup.Group("/files")
-		{
-			routesFileApi.POST("/one/encrypted", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOneEncrypted)
-			routesFileApi.GET("/all", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetAll)
-			routesFileApi.DELETE("/all", middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteOne)
-		}
-
-		webClientApi := authGroup.Group("/web")
-		{
-			webClientApi.GET("/ks", webClient.GetClientKS)
-		}
-
-		tgClientApi := authGroup.Group("/tg-bot")
-		{
-			tgClientApi.GET("/ks", tgClient.GetClientKS)
-		}
-	}
+	// регистрация всех маршрутов
+	routes.RegisterRoutes(r, cfg, quotaHandler, minioHandler, hsHandler, webClient, tgClient)
 
 	logrus.Infof("Starting server on %s", cfg.HTTPServ.ServerAddr)
 	if err := r.Run(cfg.HTTPServ.ServerAddr); err != nil {

@@ -101,16 +101,13 @@ func (m *minioClient) PresignedGetURL(ctx context.Context, bucket, objectKey str
 	return m.mc.PresignedGetObject(ctx, bucket, objectKey, m.cfg.Minio.UrlTTL, nil)
 }
 
-func (m *minioClient) CacheFileResponse(
-	ctx context.Context,
-	bucket, objectKey string,
-	fileResp dto.FileResponse,
-) error {
+func (m *minioClient) CacheFileResponse(ctx context.Context, bucket, objectKey string, fileResp dto.FileResponse) error {
 	key := fmt.Sprintf("filemeta:%s:%s", bucket, objectKey)
 	data, err := json.Marshal(fileResp)
 	if err != nil {
 		return err
 	}
+
 	return m.redisClient.Set(ctx, key, data, m.cfg.Redis.MinioUrlTTL).Err()
 }
 
@@ -559,10 +556,10 @@ func GenerateFileID(userID int, fileExt string) string {
 
 func GenerateUserMetaData(userID int, origName string, createdAt time.Time) map[string]string {
 	return map[string]string{
-        "x-amz-meta-owner-id":  strconv.Itoa(userID),
-        "x-amz-meta-original":  origName,
-        "x-amz-meta-created-at": createdAt.Format(time.RFC3339),
-    }
+		"x-amz-meta-owner-id":   strconv.Itoa(userID),
+		"x-amz-meta-original":   origName,
+		"x-amz-meta-created-at": createdAt.Format(time.RFC3339),
+	}
 }
 
 func GetCategory(contentType string) string {

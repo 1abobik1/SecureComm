@@ -86,7 +86,150 @@ const docTemplate = `{
                 }
             }
         },
+        "/files/many": {
+            "delete": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Удаляет несколько объектов из MinIO, переданных в JSON-массиве, и снижает использование квоты.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Удаление нескольких файлов",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Массив идентификаторов объектов",
+                        "name": "objectIDs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ObjectIDs"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Файлы успешно удалены",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный JSON в теле запроса",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Один из файлов не найден",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/files/one": {
+            "get": {
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Возвращает пре‐подписанную ссылку на скачивание одного файла по ID и типу.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Files"
+                ],
+                "summary": "Получение одного файла",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Идентификатор объекта",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Категория файла (photo, unknown, video, text)",
+                        "name": "type",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Ссылка на скачивание файла",
+                        "schema": {
+                            "$ref": "#/definitions/dto.FileResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный запрос",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Доступ запрещён",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Файл не найден",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "$ref": "#/definitions/cloud_handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "delete": {
                 "security": [
                     {
@@ -434,6 +577,157 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/user/{id}/plan/init": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создаёт для пользователя с переданным ID бесплатный план хранения объёмом до 10 GiB. Если план уже существует, операция игнорируется.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Quota"
+                ],
+                "summary": "Инициализация бесплатного плана (10 GiB) пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID пользователя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created — план успешно инициализирован",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID пользователя",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Ошибка авторизации или токен не предоставлен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/user/{id}/usage": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает, сколько гигабайт, мегабайт и килобайт хранится у пользователя, а также лимит (10 GiB для бесплатного плана) и имя плана.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Quota"
+                ],
+                "summary": "Получение текущего использования диска пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID пользователя",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Информация об использовании дискового пространства",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UserUsage"
+                        }
+                    },
+                    "400": {
+                        "description": "Некорректный ID пользователя",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Ошибка авторизации или токен не предоставлен",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Пользователь не найден",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -561,6 +855,17 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ObjectIDs": {
+            "type": "object",
+            "properties": {
+                "object_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "dto.SessionMessageReq": {
             "type": "object",
             "properties": {
@@ -586,6 +891,26 @@ const docTemplate = `{
             "properties": {
                 "error": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.UserUsage": {
+            "type": "object",
+            "properties": {
+                "current_used_gb": {
+                    "type": "integer"
+                },
+                "current_used_kb": {
+                    "type": "integer"
+                },
+                "current_used_mb": {
+                    "type": "integer"
+                },
+                "plan_name": {
+                    "type": "string"
+                },
+                "storage_limit_gb": {
+                    "type": "integer"
                 }
             }
         }
