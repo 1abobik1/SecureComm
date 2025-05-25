@@ -35,6 +35,7 @@ import (
 //
 // В итоге на диске остаётся только `outPath`, без каких-либо .tmp_decrypt.
 func DownloadAndDecryptStream(presignedURL, outPath string, kEnc, kMac []byte) error {
+    time.Sleep(time.Minute)
     // 0) Создать родительские папки, если их нет
     if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
         return fmt.Errorf("не удалось создать папку для %q: %w", outPath, err)

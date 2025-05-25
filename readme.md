@@ -7,15 +7,15 @@
 Создайте файл `.env` в корневой директории и добавьте следующие параметры, пример:
 
 ```ini
-# http
+# http параметры
 HTTP_SERVER_ADDRESS=0.0.0.0:8080
 
-# redis
+# redis параметры
 REDIS_SERVER_ADDRESS=redis:6379
 REDIS_HANDSHAKE_NONCES_TTL=10m
 REDIS_SESSION_NONCES_TTL=20s
-REDIS_SESSION_KEY_TTL=8760h     # без лимита(условно)
-REDIS_CLIENT_PUB_KEYS_TTL=8760h # без лимита(условно)
+REDIS_SESSION_KEY_TTL=720h     # столько же, сколько живет refresh токен
+REDIS_CLIENT_PUB_KEYS_TTL=720h # столько же, сколько живет refresh токен
 REDIS_MINIO_URL_TTL=8h
 
 # пути до серверных ключей внутри докера

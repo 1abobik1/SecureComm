@@ -160,7 +160,7 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// регистрация всех маршрутов
-	routes.RegisterRoutes(r, cfg, quotaHandler, minioHandler, hsHandler, webClient, tgClient)
+	routes.RegisterRoutes(r, cfg, quotaHandler, minioHandler, hsHandler, webClient, tgClient, hsLimiter, sessionLimiter)
 
 	logrus.Infof("Starting server on %s", cfg.HTTPServ.ServerAddr)
 	if err := r.Run(cfg.HTTPServ.ServerAddr); err != nil {

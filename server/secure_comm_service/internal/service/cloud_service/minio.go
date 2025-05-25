@@ -24,9 +24,9 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-const fileMetaOwnerID = "X-Amz-Meta-Owner-Id"
-const fileMetaFileName = "X-Amz-Meta-Original"
-const fileMetaCreatedAt = "X-Amz-Meta-Created-At"
+const fileMetaOwnerID = "User_id"
+const fileMetaFileName = "File_name"
+const fileMetaCreatedAt = "Created_At"
 
 var (
 	ErrForbiddenResource = errors.New("access to the requested resource is prohibited")
@@ -560,8 +560,8 @@ func GenerateFileID(userID int, fileExt string) string {
 
 func GenerateUserMetaData(userID int, origName string, createdAt time.Time) map[string]string {
 	return map[string]string{
-		fileMetaOwnerID:   strconv.Itoa(userID),
-		fileMetaFileName:   origName,
+		fileMetaOwnerID:   fmt.Sprintf("%d", userID),
+		fileMetaFileName:  origName,
 		fileMetaCreatedAt: createdAt.Format(time.RFC3339),
 	}
 }

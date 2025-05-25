@@ -7,33 +7,24 @@ import (
 	"github.com/1abobik1/SecureComm/internal/handler/handshake_handler"
 	"github.com/1abobik1/SecureComm/internal/handler/quota_handler"
 	"github.com/1abobik1/SecureComm/internal/middleware"
-	tb "github.com/didip/tollbooth/v7"
 	"github.com/didip/tollbooth/v7/limiter"
 	toll_gin "github.com/didip/tollbooth_gin"
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handler.QuotaHandler, minioHandler *cloud_handler.MinioHandler, hsHandler *handshake_handler.HSHandler,
-	webClient *api.WEBClientKeysAPI, tgClient *api.TGClientKeysAPI,
+	webClient *api.WEBClientKeysAPI, tgClient *api.TGClientKeysAPI, hsLimiter *limiter.Limiter, sessionLimiter *limiter.Limiter,
 ) {
 
 	authGroup := r.Group("/")
 	authGroup.Use(middleware.JWTMiddleware(cfg.JWT.PublicKeyPath))
 
 	{
-		// Handshake
-		hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
-		hsLimiter.SetBurst(cfg.HSLimiter.Burst)
-
 		hsGroup := authGroup.Group("/handshake")
 		{
 			hsGroup.POST("/init", toll_gin.LimitHandler(hsLimiter), hsHandler.Init)
 			hsGroup.POST("/finalize", toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
 		}
-
-		// Session test
-		sessionLimiter := tb.NewLimiter(cfg.SesLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.SesLimiter.TTL})
-		sessionLimiter.SetBurst(cfg.SesLimiter.Burst)
 
 		sGroup := authGroup.Group("/session")
 		{

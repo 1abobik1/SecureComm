@@ -94,12 +94,12 @@ func main() {
 	}
 	fmt.Println("Finalize handshake time:", time.Since(startFin))
 
-	// === 5. Session Test (с заголовком Authorization) ===
-	startSesTest := time.Now()
-	if err := session.DoSessionTest(generateBigMsg(1024)); err != nil {
-		panic(err)
-	}
-	fmt.Println("Session test time:", time.Since(startSesTest))
+	// // === 5. Session Test (с заголовком Authorization) ===
+	// startSesTest := time.Now()
+	// if err := session.DoSessionTest(generateBigMsg(1024)); err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println("Session test time:", time.Since(startSesTest))
 
 	// === 6. Если указан -upload-file, шифруем и отправляем файл ===
 	var rBody []byte

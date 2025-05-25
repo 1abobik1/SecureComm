@@ -4,7 +4,7 @@ gen-keys:
 run-client:
 	go run ./cmd/main.go \
   -signup-url="http://localhost:8081/user/signup" \
-  -email="aswsedf@mail.ru" \
+  -email="12321@mail.ru" \
   -password="1234567" \
   -platform="tg-bot" \
   -rsa-pub="keys/client_rsa.pub" \
