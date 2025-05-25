@@ -39,7 +39,7 @@ function Home() {
     }
 
     if (store.isAuth) {
-        return <div>Загрузка...</div>
+        return <div>Загрузка... Настраиваем ключи</div>
     }
 
     return (

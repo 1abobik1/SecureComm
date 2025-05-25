@@ -3,32 +3,19 @@ import AuthService from "@/app/api/services/AuthServices";
 import axios from 'axios';
 import {AuthResponse} from "../models/response/AuthResponse";
 import {AUTH_API_URL} from "@/app/api/http/urls";
-import {decryptKeyWithPassword, encryptKeyWithPassword, generateEncryptionKey} from '@/app/api/utils/EncryptDecryptKey';
-import {clearKey, getStoredKey} from "@/app/api/utils/KeyStorage";
-import {getEncryptedKeyFromToken} from "@/app/api/utils/KeyFromToken";
+import {decryptKsDataLogin, encryptAndStoreKey, importKeyFromBase64} from '@/app/api/utils/EncryptDecryptKey';
 import {doHandshake} from "@/app/api/services/HandshakeService/HandshakeService";
-import {setKs} from "@/app/api/utils/ksInStorage";
+import {removeKs, setKs, setKsLogin} from "@/app/api/utils/ksInStorage";
 
 
 export default class Store {
 
     isAuth = false;
     isLoading = false;
-    hasCryptoKey = false;
     platform: 'web' = 'web';
 
     constructor() {
         makeAutoObservable(this);
-        this.initializeKey();
-    }
-
-    async initializeKey() {
-        try {
-            await getStoredKey();
-            this.hasCryptoKey = true;
-        } catch {
-            this.hasCryptoKey = false;
-        }
     }
 
 
@@ -44,9 +31,12 @@ export default class Store {
     async login(email: string, password: string) {
             try {
                 const response = await AuthService.login(email, password, this.platform);
+                const encryptedKs = response.data.ks;
+                localStorage.setItem('encryptedFileKey', JSON.stringify(encryptedKs));
+                const decryptedKs = await decryptKsDataLogin(encryptedKs, password);
+                setKsLogin(decryptedKs, 60 * 8);
                 localStorage.setItem('token', response.data.access_token);
                 this.setAuth(true);
-
             } catch (e) {
 
             }
@@ -54,17 +44,18 @@ export default class Store {
 
     async signup(email: string, password: string) {
         try {
-            const ks64 = await doHandshake();
-            const ksKey = await generateEncryptionKey();
-            const ksKeyEnc = await encryptKeyWithPassword()
             const response = await AuthService.signup(email, password, this.platform);
             localStorage.setItem('token', response.data.access_token);
-            setKs(ksKey, 60 * 10)
-            this.setAuth(true);
+            const ks64 = await doHandshake();
+            if (ks64!==undefined){
+                const cryptoKey = await importKeyFromBase64(ks64);
+                await encryptAndStoreKey(cryptoKey, password);
+                setKs(cryptoKey, 60 * 8)
+                this.setAuth(true);
+            }
 
         } catch (e) {
             console.log(e.response?.data?.message);
-
             if (e.response?.status === 409) {
                 alert('Аккаунт на эту почту уже зарегистрирован.');
             } else {
@@ -74,28 +65,15 @@ export default class Store {
         }
     }
 
-    async decryptAndStoreKey(password: string): Promise<boolean> {
-        try {
-            const encryptedKey = getEncryptedKeyFromToken();
-            await decryptKeyWithPassword(encryptedKey, password);
-            this.hasCryptoKey = true;
-            return true;
-        } catch (err) {
-            console.error("Decryption error:", err);
-            return false;
-        }
-    }
-
-
 
     async logout() {
         try {
             await AuthService.logout(this.platform);
             localStorage.removeItem('token');
+            removeKs();
+            localStorage.removeItem('encryptedFileKey')
             localStorage.removeItem('lastPath');
-            clearKey();
             this.setAuth(false);
-            this.hasCryptoKey = false;
         } catch (e) {
             console.log(e.response?.data?.message);
         }

@@ -10,7 +10,8 @@ export const doInitAPI = async (
     url: string,
     rsaPubDER: Uint8Array,
     ecdsaPubDER: Uint8Array,
-    ecdsaPriv:  CryptoKey
+    ecdsaPriv:  CryptoKey,
+    token: string
 ): Promise<IInitResponse> => {
 
     // Генерируем nonce1
@@ -33,7 +34,7 @@ export const doInitAPI = async (
     };
 
 
-    const response = await postJSON(url, reqBody);
+    const response = await postJSON(url, reqBody, token);
     const initResponse = response.data as IInitResponse;
 
     // --- Верификация ответа сервера ---
@@ -86,8 +87,9 @@ export const doInitAPI = async (
 export const doFinalizeAPI = async (
     url: string,
     initResponse: IInitResponse,
-    ecdsaPriv: CryptoKey
-): Promise<[IFinalizeResponse, string]> => {
+    ecdsaPriv: CryptoKey,
+    token: string
+): Promise<string> => {
     const rsaPubServer = Uint8Array.from(atob(initResponse.rsa_pub_server), c => c.charCodeAt(0));
     const nonce2 = Uint8Array.from(atob(initResponse.nonce2), c => c.charCodeAt(0));
 
@@ -109,9 +111,8 @@ export const doFinalizeAPI = async (
 
     // Формируем запрос
     const reqBody: IFinalizeRequest = {encrypted, signature3};
-    const headers = { 'X-Client-ID': initResponse.client_id };
 
-    const response = await postJSON(url, reqBody, headers);
+    const response = await postJSON(url, reqBody, token);
     if (response.status !== 200) {
         throw new Error(`handshake/finalize failed: status ${response.status}, body: ${JSON.stringify(response.data)}`);
     }
@@ -154,6 +155,6 @@ export const doFinalizeAPI = async (
     }
 
 
-    return [finalizeResponse,ksb64];
+    return ksb64;
 
 };

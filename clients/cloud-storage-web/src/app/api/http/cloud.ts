@@ -1,5 +1,4 @@
 import {createApiInstance} from "./index";
-import {CLOUDAPI_URL} from "./urls";
+import {USAGE_CLOUD_HANDSHAKE_URL} from "./urls";
 
-export const cloudApi = createApiInstance(CLOUDAPI_URL);
-  
+export const cloudApi = createApiInstance(USAGE_CLOUD_HANDSHAKE_URL);

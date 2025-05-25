@@ -1,6 +1,6 @@
 import axios, {AxiosInstance, AxiosResponse, InternalAxiosRequestConfig} from 'axios';
 import {AuthResponse} from "@/app/api/models/response/AuthResponse";
-import {AUTH_API_URL, CLOUDAPI_URL} from "./urls";
+import {AUTH_API_URL, USAGE_CLOUD_HANDSHAKE_URL} from "./urls";
 
 export const createApiInstance = (
     baseURL: string,
@@ -14,7 +14,7 @@ export const createApiInstance = (
     api.interceptors.request.use((config:InternalAxiosRequestConfig) => {
         const token = localStorage.getItem('token');
 
-        if (baseURL === CLOUDAPI_URL) {
+        if (baseURL === USAGE_CLOUD_HANDSHAKE_URL) {
             config.headers.Authorization = `Bearer ${token}`;
         }
         return config;

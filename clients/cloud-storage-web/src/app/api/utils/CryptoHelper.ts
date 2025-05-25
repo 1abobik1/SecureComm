@@ -1,4 +1,4 @@
-import {getStoredKey} from "@/app/api/utils/KeyStorage";
+import {getKs} from "@/app/api/utils/ksInStorage";
 
 function generateIV(): Uint8Array {
     return crypto.getRandomValues(new Uint8Array(12));
@@ -8,7 +8,7 @@ export const cryptoHelper = {
     async encryptFile(file: File): Promise<File> {
         const arrayBuffer = await file.arrayBuffer();
         const iv = generateIV();
-        const key = await getStoredKey();
+        const key = getKs();
 
         const encrypted = await crypto.subtle.encrypt(
             { name: 'AES-GCM', iv },
@@ -28,7 +28,7 @@ export const cryptoHelper = {
         const iv = combined.slice(0, 12);
         const data = combined.slice(12);
 
-        const key = await getStoredKey();
+        const key = getKs();
 
         const decrypted = await crypto.subtle.decrypt(
             { name: 'AES-GCM', iv },

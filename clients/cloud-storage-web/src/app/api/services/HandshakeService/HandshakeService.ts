@@ -1,8 +1,8 @@
 import {generateECDSAKeys, generateRSAPublicKeyDER} from "@/app/api/services/HandshakeService/utils/loadKeys";
 import {doFinalizeAPI, doInitAPI} from "@/app/api/services/HandshakeService/handshake/handshake";
-import {HANDSHAKE_URL} from "@/app/api/http/urls";
+import {USAGE_CLOUD_HANDSHAKE_URL} from "@/app/api/http/urls";
 
-const HANDSHAKE_BASE_URL = HANDSHAKE_URL;
+const HANDSHAKE_BASE_URL = USAGE_CLOUD_HANDSHAKE_URL;
 
 const config = {
     initURL: `${HANDSHAKE_BASE_URL}/handshake/init`,
@@ -14,19 +14,26 @@ export async function doHandshake(){
         const rsaPubDER = await generateRSAPublicKeyDER();
         const [ecdsaPubDER, ecdsaPriv] = await generateECDSAKeys();
 
+        const token = localStorage.getItem('token');
+        if (!token) {
+            throw new Error('No token found');
+        }
+
         //Init handshake
         const initResp = await doInitAPI(
             config.initURL,
             rsaPubDER,
             ecdsaPubDER,
-            ecdsaPriv
+            ecdsaPriv,
+            token
         );
 
         // Finalize handshake
-        const [_, ks64] = await doFinalizeAPI(
+        const ks64 = await doFinalizeAPI(
             config.finURL,
             initResp,
-            ecdsaPriv
+            ecdsaPriv,
+            token
         );
         return ks64;
     } catch (err) {

@@ -3,12 +3,14 @@ import axios, {AxiosResponse} from "axios";
 export const postJSON = async (
     url: string,
     payload: any,
-    headers: Record<string, string> = {}
+    token: string,
+    headers?: Record<string, string>
 ): Promise<AxiosResponse> => {
     try {
         return await axios.post(url, payload, {
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
                 ...headers
             }
         });
