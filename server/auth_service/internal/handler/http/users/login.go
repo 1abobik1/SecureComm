@@ -17,14 +17,15 @@ import (
 // @Summary      Аутентификация пользователя
 // @Description  Логин по email и паролю.
 // @Description  В зависимости от поля `platform` в запросе возвращаются разные данные:
-// @Description    • для `platform="tg-bot"`:
-// @Description        – `access_token`
-// @Description        – `refresh_token`
-// @Description        – `k_enc` (Base64)
-// @Description        – `k_mac` (Base64)
-// @Description    • для `platform="web"`:
-// @Description        – `access_token`
-// @Description        – `ks` (JSON-объект с полями `k_enc_iv`, `k_enc_data`, `k_mac_iv`, `k_mac_data`)
+// @Description  Для platform="tg-bot":
+// @Description  access_token
+// @Description  refresh_token
+// @Description  k_enc(Base64)
+// @Description  k_mac(Base64)
+// @Description 
+// @Description  Для platform="web":
+// @Description  access_token
+// @Description  ks(JSON-объект с полями `k_enc_iv`, `k_enc_data`, `k_mac_iv`, `k_mac_data`)
 // @Tags         users
 // @Accept       json
 // @Produce      json

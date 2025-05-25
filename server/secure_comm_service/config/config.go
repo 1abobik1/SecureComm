@@ -48,15 +48,15 @@ type HTTPServConfig struct {
 }
 
 type HandShakeLimiter struct {
-	RPC   float64       `env:"HANDSHAKE_LIMITER_RPC" env-required:"true"`
-	Burst int           `env:"HANDSHAKE_LIMITER_BURST" env-required:"true"`
-	TTL   time.Duration `env:"HANDSHAKE_LIMITER_EXP_TTL" env-required:"true"`
+	RPC    float64       `env:"HANDSHAKE_LIMITER_RPC" env-required:"true"`
+	Burst  int           `env:"HANDSHAKE_LIMITER_BURST" env-required:"true"`
+	Period time.Duration `env:"HANDSHAKE_LIMITER_PERIOD" env-required:"true"`
 }
 
 type SessionLimiter struct {
-	RPC   float64       `env:"SESSION_LIMITER_RPC" env-required:"true"`
-	Burst int           `env:"SESSION_LIMITER_BURST" env-required:"true"`
-	TTL   time.Duration `env:"SESSION_LIMITER_EXP_TTL" env-required:"true"`
+	RPC    float64       `env:"SESSION_LIMITER_RPC" env-required:"true"`
+	Burst  int           `env:"SESSION_LIMITER_BURST" env-required:"true"`
+	Period time.Duration `env:"SESSION_LIMITER_PERIOD" env-required:"true"`
 }
 
 type Config struct {

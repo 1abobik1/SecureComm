@@ -28,12 +28,12 @@ ECDSA_PRIV_PATH=/root/keys/server_ecdsa.pem
 # limiter для апи: /handshake/init и /handshake/finalize 
 HANDSHAKE_LIMITER_RPC=1 # 1 запрос в секунду
 HANDSHAKE_LIMITER_BURST=2 # разрешается разом отправить 2 запроса, далее будет ограничение сверху(LIMITER_RPC=1)
-HANDSHAKE_LIMITER_EXP_TTL=1h # время когда данные о запросах клиента удалятся
+HANDSHAKE_LIMITER_PERIOD=1h # время когда данные о запросах клиента удалятся
 
 # limiter для общения по защищенному каналу 
 SESSION_LIMITER_RPC=20 # 20 запросов в секунду
 SESSION_LIMITER_BURST=25 # разрешается разом отправить 25 запросов, далее будет ограничение сверху(LIMITER_RPC=5)
-SESSION_LIMITER_EXP_TTL=1h # время когда данные о запросах клиента удалятся
+SESSION_LIMITER_PERIOD=1h # время когда данные о запросах клиента удалятся
 
 #JWT параметры
 JWT_PUBLIC_KEY_PATH=public_key.pem
@@ -82,7 +82,7 @@ EXTERNAL_TG_CLIENT=http://secure_comm_service:8080/tg-bot/ks
 QUOTA_SERVICE_URL=http://secure_comm_service:8080
 
 # limiter для login
-LOGIN_LIMITER_MAX_REQS=5
+LOGIN_LIMITER_RPC=5
 LOGIN_LIMITER_BURST=1
 LOGIN_LIMITER_PERIOD=2m
 ```

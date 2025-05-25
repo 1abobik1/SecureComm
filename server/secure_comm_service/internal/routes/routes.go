@@ -7,13 +7,11 @@ import (
 	"github.com/1abobik1/SecureComm/internal/handler/handshake_handler"
 	"github.com/1abobik1/SecureComm/internal/handler/quota_handler"
 	"github.com/1abobik1/SecureComm/internal/middleware"
-	"github.com/didip/tollbooth/v7/limiter"
-	toll_gin "github.com/didip/tollbooth_gin"
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handler.QuotaHandler, minioHandler *cloud_handler.MinioHandler, hsHandler *handshake_handler.HSHandler,
-	webClient *api.WEBClientKeysAPI, tgClient *api.TGClientKeysAPI, hsLimiter *limiter.Limiter, sessionLimiter *limiter.Limiter,
+	webClient *api.WEBClientKeysAPI, tgClient *api.TGClientKeysAPI, hsLimiterMiddleware gin.HandlerFunc, sessionLimiterMiddleware gin.HandlerFunc,
 ) {
 
 	authGroup := r.Group("/")
@@ -22,23 +20,23 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handl
 	{
 		hsGroup := authGroup.Group("/handshake")
 		{
-			hsGroup.POST("/init", toll_gin.LimitHandler(hsLimiter), hsHandler.Init)
-			hsGroup.POST("/finalize", toll_gin.LimitHandler(hsLimiter), hsHandler.Finalize)
+			hsGroup.POST("/init", hsLimiterMiddleware, hsHandler.Init)
+			hsGroup.POST("/finalize", hsLimiterMiddleware, hsHandler.Finalize)
 		}
 
 		sGroup := authGroup.Group("/session")
 		{
-			sGroup.POST("/test", toll_gin.LimitHandler(sessionLimiter), hsHandler.SessionTester)
+			sGroup.POST("/test", hsLimiterMiddleware, hsHandler.SessionTester)
 		}
 
 		// Файловое API
 		routesFileApi := authGroup.Group("/files")
 		{
-			routesFileApi.POST("/one/encrypted", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOneEncrypted)
-			routesFileApi.GET("/all", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetAll)
-			routesFileApi.GET("/one", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetOne)
-			routesFileApi.DELETE("/one", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteOne)
-			routesFileApi.DELETE("/many", toll_gin.LimitHandler(sessionLimiter), middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteMany)
+			routesFileApi.POST("/one/encrypted", sessionLimiterMiddleware, middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.CreateOneEncrypted)
+			routesFileApi.GET("/all", sessionLimiterMiddleware, middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetAll)
+			routesFileApi.GET("/one", sessionLimiterMiddleware, middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.GetOne)
+			routesFileApi.DELETE("/one", sessionLimiterMiddleware, middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteOne)
+			routesFileApi.DELETE("/many", sessionLimiterMiddleware, middleware.MaxSizeMiddleware(middleware.MaxFileSize), middleware.MaxStreamMiddleware(middleware.MaxFileSize), minioHandler.DeleteMany)
 		}
 
 		webClientApi := authGroup.Group("/web")
@@ -54,7 +52,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handl
 		quotaApi := authGroup.Group("/user")
 		{
 			quotaApi.POST("/:id/plan/init", quotaHandler.InitUserPlan)
-			quotaApi.GET("/:id/usage", toll_gin.LimitHandler(sessionLimiter), quotaHandler.GetUserUsage)
+			quotaApi.GET("/:id/usage", sessionLimiterMiddleware, quotaHandler.GetUserUsage)
 		}
 	}
 }

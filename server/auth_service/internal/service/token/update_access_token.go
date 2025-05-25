@@ -16,7 +16,7 @@ func (s *tokenService) UpdateAccessToken(refreshToken string) (string, error) {
 		return "", err
 	}
 
-	newAccessToken, err := utils.CreateAccessToken(userID, s.cfg.AccessTokenTTL, s.cfg.PrivateKeyPath)
+	newAccessToken, err := utils.CreateAccessToken(userID, s.cfg.JWT.AccessTokenTTL, s.cfg.JWT.PrivateKeyPath)
 	if err != nil {
 		log.Printf("Error creating access token: %v, location %s \n", err, op)
 		return "", fmt.Errorf("error creating access token: %w", err)

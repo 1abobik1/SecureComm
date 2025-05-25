@@ -11,14 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 )
 
 // DownloadAndDecryptStream скачивает «encrypted_blob» по presignedURL,
 // проверяет HMAC, расшифровывает AES-CBC блок за блоком, снимает PKCS#7-padding
-func DownloadAndDecryptStream(presignedURL, outPath string, kEnc, kMac []byte) error {
-	time.Sleep(time.Minute)
-    // создаём папку
+func DownLoadFileByURL(presignedURL, outPath string, kEnc, kMac []byte) error {
+	// создаём папку
 	if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
 		return err
 	}

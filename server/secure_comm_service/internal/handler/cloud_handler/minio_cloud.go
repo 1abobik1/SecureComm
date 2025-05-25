@@ -77,14 +77,7 @@ func (h *MinioHandler) CreateOneEncrypted(c *gin.Context) {
 	cr := count_reader.NewCountReader(c.Request.Body)
 	defer cr.Close()
 
-	_, err = h.minioService.PutEncryptedObject(
-		c.Request.Context(),
-		category,
-		objID,
-		cr,
-		-1,
-		opts,
-	)
+	_, err = h.minioService.PutEncryptedObject(c.Request.Context(), category, objID, cr, -1, opts)
 	if err != nil {
 		logrus.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "upload failed"})

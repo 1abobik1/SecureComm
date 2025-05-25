@@ -32,13 +32,13 @@ func (s *userService) Register(ctx context.Context, email, password, platform st
 		return "", "", err
 	}
 
-	accessToken, err := utils.CreateAccessToken(userID, s.cfg.AccessTokenTTL, s.cfg.PrivateKeyPath)
+	accessToken, err := utils.CreateAccessToken(userID, s.cfg.JWT.AccessTokenTTL, s.cfg.JWT.PrivateKeyPath)
 	if err != nil {
 		log.Printf("Error creating access token: %v \n", err)
 		return "", "", fmt.Errorf("error creating access token: %w", err)
 	}
 
-	refreshToken, err := utils.CreateRefreshToken(userID, s.cfg.RefreshTokenTTL, s.cfg.PrivateKeyPath)
+	refreshToken, err := utils.CreateRefreshToken(userID, s.cfg.JWT.RefreshTokenTTL, s.cfg.JWT.PrivateKeyPath)
 	if err != nil {
 		log.Printf("Error creating refresh token: %v \n", err)
 		return "", "", fmt.Errorf("error creating refresh token: %w", err)
@@ -49,7 +49,7 @@ func (s *userService) Register(ctx context.Context, email, password, platform st
 		return "", "", fmt.Errorf("error upserting refresh token in db: %w", err)
 	}
 
-	if err := external_api.NotifyQuotaService(s.cfg.QuotaServiceURL, userID, accessToken); err != nil {
+	if err := external_api.NotifyQuotaService(s.cfg.ExternalAPIs.QuotaServiceURL, userID, accessToken); err != nil {
 		log.Printf("warning: failed to init free plan for user %d: %v", userID, err)
 		return "", "", fmt.Errorf("failed to init free plan for user %d: %v", userID, err)
 	}
