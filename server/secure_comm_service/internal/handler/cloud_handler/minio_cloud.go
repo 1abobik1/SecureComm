@@ -93,15 +93,14 @@ func (h *MinioHandler) CreateOneEncrypted(c *gin.Context) {
 
 	// получение веса файла
 	size := cr.N
-    if err := h.quotaService.CheckQuota(c, userID, size); err != nil {
-        if errors.Is(err, quota_service.ErrQuotaExceeded) {
-            c.JSON(http.StatusForbidden, gin.H{"error": "quota exceeded"})
-            return
-        }
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "quota check failed"})
-        return
-    }
-
+	if err := h.quotaService.CheckQuota(c, userID, size); err != nil {
+		if errors.Is(err, quota_service.ErrQuotaExceeded) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "quota exceeded"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "quota check failed"})
+		return
+	}
 
 	presignedURL, err := h.minioService.PresignedGetURL(c.Request.Context(), category, objID)
 	if err != nil {
@@ -120,7 +119,6 @@ func (h *MinioHandler) CreateOneEncrypted(c *gin.Context) {
 	}
 	if err := h.minioService.CacheFileResponse(c.Request.Context(), category, objID, fileResp); err != nil {
 		logrus.Errorf("CacheFileResponse error: %v", err)
-		return 
 	}
 
 	if err := h.quotaService.AddUsage(c, userID, size); err != nil {
@@ -136,7 +134,6 @@ func (h *MinioHandler) CreateOneEncrypted(c *gin.Context) {
 
 	c.JSON(http.StatusOK, fileResp)
 }
-
 
 // GetOne возвращает предварительно подписанную ссылку на скачивание одного файла
 // @Summary      Получение одного файла
@@ -293,61 +290,61 @@ func (h *MinioHandler) GetAll(c *gin.Context) {
 // @Security     bearerAuth
 // @Router       /files/one [delete]
 func (h *MinioHandler) DeleteOne(c *gin.Context) {
-    const op = "location internal.handler.minio_handler.minio.DeleteOne"
+	const op = "location internal.handler.minio_handler.minio.DeleteOne"
 
-    userID, err := utils.GetUserID(c)
-    if err != nil {
-        logrus.Infof("Errors: %v", err)
-        c.JSON(http.StatusBadRequest, gin.H{"error": "the user's ID was not found in the token."})
-        return
-    }
+	userID, err := utils.GetUserID(c)
+	if err != nil {
+		logrus.Infof("Errors: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "the user's ID was not found in the token."})
+		return
+	}
 
-    objectID := dto.ObjectID{
-        ObjID:        c.Query("id"),
-        FileCategory: c.Query("type"),
-    }
+	objectID := dto.ObjectID{
+		ObjID:        c.Query("id"),
+		FileCategory: c.Query("type"),
+	}
 
-    logrus.Infof("objectID... ID:%s, userID:%d, FileCategory:%s", objectID.ObjID, userID, objectID.FileCategory)
+	logrus.Infof("objectID... ID:%s, userID:%d, FileCategory:%s", objectID.ObjID, userID, objectID.FileCategory)
 
-    size, err := h.minioService.DeleteOne(c, objectID, userID)
-    if err != nil {
-        logrus.Infof("Error: %v,  %s", err, op)
+	size, err := h.minioService.DeleteOne(c, objectID, userID)
+	if err != nil {
+		logrus.Infof("Error: %v,  %s", err, op)
 
-        if errors.Is(err, cloud_service.ErrFileNotFound) {
-            c.JSON(http.StatusNotFound, ErrorResponse{
-                Status:  http.StatusNotFound,
-                Error:   "File not found",
-                Details: fmt.Sprintf("%v", err.Error()),
-            })
-            return
-        }
+		if errors.Is(err, cloud_service.ErrFileNotFound) {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Status:  http.StatusNotFound,
+				Error:   "File not found",
+				Details: fmt.Sprintf("%v", err.Error()),
+			})
+			return
+		}
 
-        if errors.Is(err, cloud_service.ErrForbiddenResource) {
-            c.JSON(http.StatusForbidden, ErrorResponse{
-                Status:  http.StatusForbidden,
-                Error:   "access to the requested resource is prohibited",
-                Details: err.Error(),
-            })
-            return
-        }
+		if errors.Is(err, cloud_service.ErrForbiddenResource) {
+			c.JSON(http.StatusForbidden, ErrorResponse{
+				Status:  http.StatusForbidden,
+				Error:   "access to the requested resource is prohibited",
+				Details: err.Error(),
+			})
+			return
+		}
 
-        c.JSON(http.StatusInternalServerError, ErrorResponse{
-            Status:  http.StatusInternalServerError,
-            Error:   "Cannot delete the object",
-            Details: err,
-        })
-        return
-    }
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Status:  http.StatusInternalServerError,
+			Error:   "Cannot delete the object",
+			Details: err,
+		})
+		return
+	}
 
-    if err := h.quotaService.RemoveUsage(c, userID, size); err != nil {
-        logrus.Infof("RemoveUsage error: %v", err)
-        c.Status(http.StatusInternalServerError)
-    }
+	if err := h.quotaService.RemoveUsage(c, userID, size); err != nil {
+		logrus.Infof("RemoveUsage error: %v", err)
+		c.Status(http.StatusInternalServerError)
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "status":  http.StatusOK,
-        "message": "File deleted successfully",
-    })
+	c.JSON(http.StatusOK, gin.H{
+		"status":  http.StatusOK,
+		"message": "File deleted successfully",
+	})
 }
 
 // DeleteMany удаляет несколько файлов
@@ -420,15 +417,15 @@ func (h *MinioHandler) DeleteMany(c *gin.Context) {
 		}
 	}
 
-	 var totalRemoved int64
-    for _, sz := range sizes {
-        totalRemoved += sz
-    }
+	var totalRemoved int64
+	for _, sz := range sizes {
+		totalRemoved += sz
+	}
 
-    if err := h.quotaService.RemoveUsage(c.Request.Context(), userID, totalRemoved); err != nil {
-        logrus.Infof("RemoveUsage error: %v", err)
-        c.Status(http.StatusInternalServerError)
-    }
+	if err := h.quotaService.RemoveUsage(c.Request.Context(), userID, totalRemoved); err != nil {
+		logrus.Infof("RemoveUsage error: %v", err)
+		c.Status(http.StatusInternalServerError)
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":  http.StatusOK,

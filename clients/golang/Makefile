@@ -4,7 +4,7 @@ gen-keys:
 run-client:
 	go run ./cmd/main.go \
   -signup-url="http://localhost:8081/user/signup" \
-  -email="232@mail.ru" \
+  -email="4@mail.ru" \
   -password="1234567" \
   -platform="tg-bot" \
   -rsa-pub="keys/client_rsa.pub" \
@@ -13,6 +13,6 @@ run-client:
   -init-url="http://localhost:8080/handshake/init" \
   -fin-url="http://localhost:8080/handshake/finalize" \
   -session-test-url="http://localhost:8080/session/test" \
-  -upload-file="test_photo/video.mp4" \
+  -upload-file="test_photo/simple.jpg" \
   -cloud-url="http://localhost:8080/files/one/encrypted" \
-  -category="video"
+  -category="photo"

@@ -130,17 +130,13 @@ func main() {
 	// limiter для /handshake
 	hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
 	hsLimiter.SetBurst(cfg.HSLimiter.Burst)
-	// limiter сначала пробует сделать лимит по client_id, если его нет в header, то по ip
 	hsLimiter.SetIPLookups([]string{
-		"Header:X-Client-ID",
 		"RemoteAddr",
 	})
-	// limiter для /session/test
+	// limiter для остальных апи
 	sessionLimiter := tb.NewLimiter(cfg.SesLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.SesLimiter.TTL})
 	sessionLimiter.SetBurst(cfg.SesLimiter.Burst)
-	// limiter сначала пробует сделать лимит по client_id, если его нет в header, то по ip
 	sessionLimiter.SetIPLookups([]string{
-		"Header:X-Client-ID",
 		"RemoteAddr",
 	})
 
@@ -160,7 +156,7 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// регистрация всех маршрутов
-	routes.RegisterRoutes(r, cfg, quotaHandler, minioHandler, hsHandler, webClient, tgClient)
+	routes.RegisterRoutes(r, cfg, quotaHandler, minioHandler, hsHandler, webClient, tgClient, hsLimiter, sessionLimiter)
 
 	logrus.Infof("Starting server on %s", cfg.HTTPServ.ServerAddr)
 	if err := r.Run(cfg.HTTPServ.ServerAddr); err != nil {

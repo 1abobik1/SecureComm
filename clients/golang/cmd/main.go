@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -94,12 +93,12 @@ func main() {
 	}
 	fmt.Println("Finalize handshake time:", time.Since(startFin))
 
-	// === 5. Session Test (с заголовком Authorization) ===
-	startSesTest := time.Now()
-	if err := session.DoSessionTest(generateBigMsg(1024)); err != nil {
-		panic(err)
-	}
-	fmt.Println("Session test time:", time.Since(startSesTest))
+	// // === 5. Session Test (с заголовком Authorization) ===
+	// startSesTest := time.Now()
+	// if err := session.DoSessionTest(generateBigMsg(1024)); err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println("Session test time:", time.Since(startSesTest))
 
 	// === 6. Если указан -upload-file, шифруем и отправляем файл ===
 	var rBody []byte
@@ -143,112 +142,84 @@ func generateBigMsg(sizeBytes int) string {
 	return base64.StdEncoding.EncodeToString(b)
 }
 
-// uploadEncryptedFile строит пакет данныx и отправляет его «сырыми байтами» в облако.
+// uploadEncryptedFile — отправка зашифрованного blob-а
 func uploadEncryptedFile(
 	filePath, cloudURL, accessToken, category string,
 	kEnc, kMac []byte,
 ) ([]byte, error) {
-	// Открываем файл
 	f, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось открыть файл: %w", err)
+		return nil, fmt.Errorf("open file: %w", err)
 	}
 	defer f.Close()
 
-	// Читаем содержимое
-	fileBytes, err := ioutil.ReadAll(f)
+	content, err := ioutil.ReadAll(f)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось прочитать файл: %w", err)
+		return nil, fmt.Errorf("read file: %w", err)
 	}
 
-	// Определяем имя и mime-тип
-	origName := filepath.Base(filePath)
-	ext := filepath.Ext(filePath)
-	mimeType := mime.TypeByExtension(ext)
-	if mimeType == "" {
-		mimeType = http.DetectContentType(fileBytes)
-	}
-
-	// Строим «зашифрованный blob»
-	encryptedBlob, err := buildEncryptedBlob(fileBytes, kEnc, kMac)
+	blob, err := buildEncryptedBlob(content, kEnc, kMac)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при шифровании: %w", err)
+		return nil, fmt.Errorf("encrypt blob: %w", err)
 	}
 
-	// Делаем POST-запрос
-	req, err := http.NewRequest("POST", cloudURL, bytes.NewReader(encryptedBlob))
+	req, err := http.NewRequest("POST", cloudURL, bytes.NewReader(blob))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("X-Orig-Filename", origName)
-	req.Header.Set("X-Orig-Mime", mimeType)
+	req.Header.Set("X-Orig-Filename", filepath.Base(filePath))
+	req.Header.Set("X-Orig-Mime", mime.TypeByExtension(filepath.Ext(filePath)))
 	req.Header.Set("X-File-Category", category)
 	req.Header.Set("Content-Type", "application/octet-stream")
 
-	clientHTTP := &http.Client{Timeout: 10 * time.Minute}
-	resp, err := clientHTTP.Do(req)
+	res, err := (&http.Client{Timeout: 10 * time.Minute}).Do(req)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer res.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return body, fmt.Errorf("cloud-API вернул статус %d", resp.StatusCode)
+	body, _ := ioutil.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK {
+		return body, fmt.Errorf("cloud API returned %d", res.StatusCode)
 	}
 	return body, nil
-
 }
 
-// buildEncryptedBlob собирает пакет:
-//
-//	timestamp(8) || nonce(16) || IV(16) || ciphertext || tag(32)
-//
-// где ciphertext = AES-256-CBC(PKCS#7(plain)), а tag = HMAC-SHA256(iv || ciphertext).
+// buildEncryptedBlob теперь без timestamp
 func buildEncryptedBlob(
 	plain, kEnc, kMac []byte,
 ) ([]byte, error) {
-	// 1) timestamp (8 байт)
-	now := time.Now().UnixMilli()
-	tsBuf := make([]byte, 8)
-	binary.BigEndian.PutUint64(tsBuf, uint64(now))
-
-	// 2) nonce (16 байт)
+	// 1) nonce 16 байт
 	nonce := make([]byte, 16)
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
 	}
-
-	// 3) IV (16 байт)
+	// 2) iv 16 байт
 	iv := make([]byte, aes.BlockSize)
 	if _, err := rand.Read(iv); err != nil {
 		return nil, err
 	}
-
-	// 4) PKCS#7 + AES-CBC
+	// 3) AES-CBC + PKCS7
 	block, err := aes.NewCipher(kEnc)
 	if err != nil {
 		return nil, err
 	}
 	padded := client.Pkcs7Pad(plain, aes.BlockSize)
 	ciphertext := make([]byte, len(padded))
-	mode := cipher.NewCBCEncrypter(block, iv)
-	mode.CryptBlocks(ciphertext, padded)
+	cipher.NewCBCEncrypter(block, iv).CryptBlocks(ciphertext, padded)
 
-	// 5) tag = HMAC-SHA256(iv || ciphertext)
+	// 4) HMAC-SHA256(iv || ciphertext)
 	mac := hmac.New(sha256.New, kMac)
 	mac.Write(iv)
 	mac.Write(ciphertext)
-	tag := mac.Sum(nil) // 32 байта
+	tag := mac.Sum(nil)
 
-	// 6) Собираем весь буфер
+	// 5) итоговый буфер: nonce||iv||ciphertext||tag
 	buf := bytes.Buffer{}
-	buf.Write(tsBuf)
 	buf.Write(nonce)
 	buf.Write(iv)
 	buf.Write(ciphertext)
 	buf.Write(tag)
-
 	return buf.Bytes(), nil
 }

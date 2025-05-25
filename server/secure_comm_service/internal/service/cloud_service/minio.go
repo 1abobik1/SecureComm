@@ -24,6 +24,10 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+const fileMetaOwnerID = "User_id"
+const fileMetaFileName = "File_name"
+const fileMetaCreatedAt = "Created_At"
+
 var (
 	ErrForbiddenResource = errors.New("access to the requested resource is prohibited")
 	ErrFileNotFound      = errors.New("file not found")
@@ -263,7 +267,7 @@ func (m *minioClient) GetOne(ctx context.Context, objectID dto.ObjectID, userID 
 		return dto.FileResponse{}, fmt.Errorf("error getting information about the object %s: %w", objectID.ObjID, ErrFileNotFound)
 	}
 
-	userIdStr, ok := objInfo.UserMetadata["User_id"]
+	userIdStr, ok := objInfo.UserMetadata[fileMetaOwnerID]
 	if !ok {
 		log.Printf("Error: %v, %s \n", err, op)
 		return dto.FileResponse{}, fmt.Errorf("the user_id metadata was not found for the object %s: %w", objectID.ObjID, ErrFileNotFound)
@@ -284,13 +288,13 @@ func (m *minioClient) GetOne(ctx context.Context, objectID dto.ObjectID, userID 
 		log.Printf("Error: %v, %s", err, op)
 		return dto.FileResponse{}, OperationError{ObjectID: objectID.ObjID, Err: fmt.Errorf("error when getting the URL for the object %s: %w", objectID.ObjID, ErrFileNotFound)}
 	}
-	createdAtStr, okDate := objInfo.UserMetadata["Created_At"]
+	createdAtStr, okDate := objInfo.UserMetadata[fileMetaCreatedAt]
 	if !okDate {
 		createdAtStr = objInfo.LastModified.Format(time.RFC3339)
 	}
 
 	fileResp.Created_At = createdAtStr
-	fileResp.Name = objInfo.UserMetadata["File_name"]
+	fileResp.Name = objInfo.UserMetadata[fileMetaFileName]
 	fileResp.ObjID = objectID.ObjID
 	fileResp.Url = minioURL.String()
 	fileResp.MimeType = objInfo.ContentType
@@ -362,13 +366,13 @@ func (m *minioClient) GetAll(ctx context.Context, t string, userID int) ([]dto.F
 				errs = append(errs, err)
 				continue
 			}
-			createdAtStr, okDate := objInfo.UserMetadata["Created_At"]
+			createdAtStr, okDate := objInfo.UserMetadata[fileMetaCreatedAt]
 			if !okDate {
 				createdAtStr = objInfo.LastModified.Format(time.RFC3339)
 			}
 
 			fileResp.Created_At = createdAtStr
-			fileResp.Name = objInfo.UserMetadata["File_name"]
+			fileResp.Name = objInfo.UserMetadata[fileMetaFileName]
 			fileResp.ObjID = object.Key
 			fileResp.Url = presignedURL.String()
 			fileResp.MimeType = objInfo.ContentType
@@ -478,7 +482,7 @@ func (m *minioClient) DeleteOne(ctx context.Context, objectID dto.ObjectID, user
 	}
 	size := objInfo.Size
 
-	userIdStr, ok := objInfo.UserMetadata["User_id"]
+	userIdStr, ok := objInfo.UserMetadata[fileMetaOwnerID]
 	if !ok {
 		log.Printf("Error: %v, %s \n", err, op)
 		return 0, fmt.Errorf("the user_id metadata was not found for the object %s: %w", objectID.ObjID, ErrFileNotFound)
@@ -556,9 +560,9 @@ func GenerateFileID(userID int, fileExt string) string {
 
 func GenerateUserMetaData(userID int, origName string, createdAt time.Time) map[string]string {
 	return map[string]string{
-		"x-amz-meta-owner-id":   strconv.Itoa(userID),
-		"x-amz-meta-original":   origName,
-		"x-amz-meta-created-at": createdAt.Format(time.RFC3339),
+		fileMetaOwnerID:   fmt.Sprintf("%d", userID),
+		fileMetaFileName:  origName,
+		fileMetaCreatedAt: createdAt.Format(time.RFC3339),
 	}
 }
 
