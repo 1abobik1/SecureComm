@@ -19,7 +19,7 @@ func encryptAESGCM(password string, data []byte) (ivB64, ctB64 string, err error
 	if err != nil {
 		return
 	}
-	iv := make([]byte, gcm.NonceSize())
+	iv := make([]byte, 12)
 	io.ReadFull(rand.Reader, iv)
 	ct := gcm.Seal(nil, iv, data, nil)
 	ivB64 = base64.StdEncoding.EncodeToString(iv)
