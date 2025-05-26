@@ -8,7 +8,7 @@ export default class CloudService {
     }
 
 
-    static async uploadFiles(filename: string, mimeType: string, category: 'photo' | 'video' | 'text' | 'unknown', encryptedBlob: Uint8Array) {
+    static async uploadFiles(filename: string, mimeType: string, category: "photo" | "video" | "text" | "unknown", encryptedBlob: ReadableStream<Uint8Array>) {
         return await cloudApi.post<OneFileResponse>(`/files/one/encrypted`,  {
             headers: {
                 'X-Orig-Filename': filename,
@@ -16,7 +16,7 @@ export default class CloudService {
                 'X-File-Category': category,
                 'Content-Type': 'application/octet-stream',
             },
-            encryptedBlob,
+            body: encryptedBlob,
         });
     }
 

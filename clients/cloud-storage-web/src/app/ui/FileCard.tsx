@@ -3,10 +3,9 @@
 // import {ArrowDownTrayIcon, TrashIcon} from '@heroicons/react/24/outline';
 // import ModalDelete from './ModalDelete';
 // import TypeFileIcon from './TypeFileIcon';
-// import {cryptoHelper} from '@/app/api/utils/CryptoHelper';
 // import PasswordModal, {PasswordModalRef} from '@/app/ui/PasswordModal';
 // import {decryptStoredKey} from "@/app/api/utils/EncryptDecryptKey";
-// import {Context} from '@/app/_app';
+// import {Context} from '@/app/api/store/context';
 //
 // export type FileCardData = {
 //   name: string;
@@ -23,7 +22,7 @@
 //   const [downloadError, setDownloadError] = useState<string | null>(null);
 //   const [action, setAction] = useState<'view' | 'download' | null>(null);
 //   const passwordModalRef = useRef<PasswordModalRef>(null);
-//   const { store } = useContext(Context);
+//   const store = useContext(Context);
 //
 //   const performDownload = async () => {
 //     try {
@@ -114,7 +113,7 @@
 //         k_mac_iv: string,
 //         k_mac_data: string
 //       } = JSON.parse(localStorage.getItem('encryptedFileKey') as string);
-//       const success = await decryptStoredKey(encKs, password);
+//       const success = await decryptStoredKey(encKs, password, store);
 //       if (!success) {
 //         setDownloadError('Неверный пароль');
 //         return false;

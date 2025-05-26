@@ -8,8 +8,8 @@ import {useUsageRefresh} from './UsageRefreshContext';
 import {decryptStoredKey} from "@/app/api/utils/EncryptDecryptKey";
 import PasswordModal, {PasswordModalRef} from "@/app/ui/PasswordModal";
 import {getKs} from "@/app/api/utils/ksInStorage";
-import CloudService from "@/app/api/services/CloudServices";
-import {buildEncryptedBlob} from "@/app/api/utils/CryptoHelper";
+import {streamingUploadEncryptedFile} from "@/app/api/utils/CryptoHelper";
+
 
 const FileUploader = observer(() => {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -85,15 +85,7 @@ const FileUploader = observer(() => {
 
             // Обрабатываем каждый файл
             for (const file of Array.from(files)) {
-                const fileData = new Uint8Array(await file.arrayBuffer());
-                const encryptedBlob = await buildEncryptedBlob(fileData, kEnc, kMac);
-
-                // Загружаем файл
-                const response = await CloudService.uploadFiles(file.name, file.type, 'unknown', encryptedBlob);
-
-                if (response.status!==200) {
-                    throw new Error(`Ошибка загрузки: ${response.statusText}`);
-                }
+                await streamingUploadEncryptedFile({category: "unknown", cloudURL: "'http://localhost:8080/files/one/encrypted'", file, kEnc, kMac} );
             }
 
             const elapsedTime = Date.now() - startTime;
