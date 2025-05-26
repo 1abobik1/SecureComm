@@ -19,6 +19,7 @@ clients/golang/keys/
 clients/golang/internal/big_message/
 clients/python/sessions.db
 clients/python/cloud_swagger.yaml
+clients/golang/test_photo/BGND_Krypt_ShangTsungIsland.psf
 
 # Python
 __pycache__/

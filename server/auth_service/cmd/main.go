@@ -8,6 +8,7 @@ import (
 	"github.com/1abobik1/AuthService/internal/external_api"
 	handlerToken "github.com/1abobik1/AuthService/internal/handler/http/token"
 	handlerUsers "github.com/1abobik1/AuthService/internal/handler/http/users"
+	"github.com/1abobik1/AuthService/internal/middleware"
 	serviceToken "github.com/1abobik1/AuthService/internal/service/token"
 	serviceUsers "github.com/1abobik1/AuthService/internal/service/users"
 	"github.com/1abobik1/AuthService/internal/storage/postgresql"
@@ -41,7 +42,7 @@ import (
 func main() {
 	cfg := config.MustLoad()
 
-	postgresStorage, err := postgresql.NewPostgresStorageProd(cfg.StoragePath)
+	postgresStorage, err := postgresql.NewPostgresStorageProd(cfg.Postgres.StoragePath)
 	if err != nil {
 		panic("postgres connection error")
 	}
@@ -52,8 +53,8 @@ func main() {
 	httpClient := &http.Client{
 		Timeout: 3 * time.Second,
 	}
-	tgClient := external_api.NewTGClient(cfg.ExternalTGClient, httpClient)
-	webClient := external_api.NewWEBClient(cfg.ExternalWebClient, httpClient)
+	tgClient := external_api.NewTGClient(cfg.ExternalAPIs.TGClient, httpClient)
+	webClient := external_api.NewWEBClient(cfg.ExternalAPIs.WebClient, httpClient)
 
 	userHandler := handlerUsers.NewUserHandler(userService, tgClient, webClient)
 
@@ -62,7 +63,8 @@ func main() {
 
 	r := gin.Default()
 
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler)) // свагер документация
+	// свагер документация(лучше брать доки с папки docs)
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// cors conf
 	r.Use(cors.New(cors.Config{
@@ -75,12 +77,12 @@ func main() {
 	}))
 
 	r.POST("/user/signup", userHandler.SignUp)
-	r.POST("/user/login", userHandler.Login)
+	r.POST("/user/login", middleware.NewIPRateLimiter(cfg.LoginLimiter.RPC, cfg.LoginLimiter.Burst, cfg.LoginLimiter.Period), userHandler.Login)
 	r.POST("/user/logout", userHandler.Logout)
 
 	r.POST("/token/update", tokenHandler.TokenUpdate)
 
-	if err := r.Run(cfg.HTTPServer); err != nil {
+	if err := r.Run(cfg.HTTPServ.ServerAddr); err != nil {
 		panic(err)
 	}
 }

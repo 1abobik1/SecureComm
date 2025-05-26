@@ -7,13 +7,13 @@
 Создайте файл `.env` в корневой директории и добавьте следующие параметры, пример:
 
 ```ini
-# http параметры
+# http
 HTTP_SERVER_ADDRESS=0.0.0.0:8080
 
-# redis параметры
+# redis
 REDIS_SERVER_ADDRESS=redis:6379
 REDIS_HANDSHAKE_NONCES_TTL=10m
-REDIS_SESSION_NONCES_TTL=20s
+REDIS_SESSION_NONCES_TTL=8h    # столько же, сколько живет MINIO_URL_LIFETIME
 REDIS_SESSION_KEY_TTL=720h     # столько же, сколько живет refresh токен
 REDIS_CLIENT_PUB_KEYS_TTL=720h # столько же, сколько живет refresh токен
 REDIS_MINIO_URL_TTL=8h
@@ -28,12 +28,12 @@ ECDSA_PRIV_PATH=/root/keys/server_ecdsa.pem
 # limiter для апи: /handshake/init и /handshake/finalize 
 HANDSHAKE_LIMITER_RPC=1 # 1 запрос в секунду
 HANDSHAKE_LIMITER_BURST=2 # разрешается разом отправить 2 запроса, далее будет ограничение сверху(LIMITER_RPC=1)
-HANDSHAKE_LIMITER_EXP_TTL=1h # время когда данные о запросах клиента удалятся
+HANDSHAKE_LIMITER_PERIOD=1h # время когда данные о запросах клиента удалятся
 
 # limiter для общения по защищенному каналу 
 SESSION_LIMITER_RPC=20 # 20 запросов в секунду
 SESSION_LIMITER_BURST=25 # разрешается разом отправить 25 запросов, далее будет ограничение сверху(LIMITER_RPC=5)
-SESSION_LIMITER_EXP_TTL=1h # время когда данные о запросах клиента удалятся
+SESSION_LIMITER_PERIOD=1h # время когда данные о запросах клиента удалятся
 
 #JWT параметры
 JWT_PUBLIC_KEY_PATH=public_key.pem
@@ -59,18 +59,32 @@ STORAGE_PATH=postgres://postgres:dima15042004@user_usage_db:5432/cloud_service?s
 Создайте файл `.env` в корневой директории и добавьте следующие параметры, пример:
 
 ```ini
+# postgres параметры
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=dima15042004
 POSTGRES_DB=auth-service
 STORAGE_PATH=postgres://postgres:dima15042004@auth_db:5432/auth-service?sslmode=disable
+
+# сервер
 HTTP_SERVER_ADDRESS=0.0.0.0:8081
+
+# jwt параметры
 ACCESS_TOKEN_TTL=15m
 REFRESH_TOKEN_TTL=720h
+
+# пути до ключей(нужны для jwt)
 PUBLIC_KEY_PATH=public_key.pem
 PRIVATE_KEY_PATH=private_key.pem
+
+# внешние запросы
 EXTERNAL_WEB_CLIENT=http://secure_comm_service:8080/web/ks
 EXTERNAL_TG_CLIENT=http://secure_comm_service:8080/tg-bot/ks
 QUOTA_SERVICE_URL=http://secure_comm_service:8080
+
+# limiter для login
+LOGIN_LIMITER_RPC=5
+LOGIN_LIMITER_BURST=1
+LOGIN_LIMITER_PERIOD=2m
 ```
 > **Важно:** Замените `MyPASS` на ваш реальный пароль от PostgreSQL.
 > После запуска сервер будет доступен по адресу `http://localhost:8081`

@@ -33,13 +33,13 @@ func (s *userService) Login(ctx context.Context, email, password, platform strin
 		return "", "", ErrInvalidCredentials
 	}
 
-	accessToken, err := utils.CreateAccessToken(userModel.ID, s.cfg.AccessTokenTTL, s.cfg.PrivateKeyPath)
+	accessToken, err := utils.CreateAccessToken(userModel.ID, s.cfg.JWT.AccessTokenTTL, s.cfg.JWT.PrivateKeyPath)
 	if err != nil {
 		log.Printf("Error creating access token: %v, location %s \n", err, op)
 		return  "", "", fmt.Errorf("error creating access token: %w", err)
 	}
 
-	refreshToken, err := utils.CreateRefreshToken(userModel.ID, s.cfg.RefreshTokenTTL, s.cfg.PrivateKeyPath)
+	refreshToken, err := utils.CreateRefreshToken(userModel.ID, s.cfg.JWT.RefreshTokenTTL, s.cfg.JWT.PrivateKeyPath)
 	if err != nil {
 		log.Printf("Error creating refresh token: %v, location %s \n", err, op)
 		return "", "", fmt.Errorf("error creating refresh token: %w", err)

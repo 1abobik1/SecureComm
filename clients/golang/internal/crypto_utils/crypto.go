@@ -1,8 +1,11 @@
-package client
+package crypto_utils
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ecdsa"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -86,10 +89,47 @@ func Pkcs7Pad(data []byte, blockSize int) []byte {
 	return append(data, padding...)
 }
 
-func mustSignPayloadECDSA(priv *ecdsa.PrivateKey, data []byte) string {
+func MustSignPayloadECDSA(priv *ecdsa.PrivateKey, data []byte) string {
 	sig, err := SignPayloadECDSA(priv, data)
 	if err != nil {
 		panic(err)
 	}
 	return sig
+}
+
+// BuildEncryptedBlob шифрует входные данные с помощью AES-CBC и дополняет результат HMAC-SHA256
+// Возвращает бинарный blob в формате: nonce (16B) || iv (16B) || ciphertext || hmac-tag
+func BuildEncryptedBlob(plain, kEnc, kMac []byte) ([]byte, error) {
+	// nonce 16 байт
+	nonce := make([]byte, 16)
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, err
+	}
+	// iv 16 байт
+	iv := make([]byte, aes.BlockSize)
+	if _, err := rand.Read(iv); err != nil {
+		return nil, err
+	}
+	// AES-CBC + PKCS7
+	block, err := aes.NewCipher(kEnc)
+	if err != nil {
+		return nil, err
+	}
+	padded := Pkcs7Pad(plain, aes.BlockSize)
+	ciphertext := make([]byte, len(padded))
+	cipher.NewCBCEncrypter(block, iv).CryptBlocks(ciphertext, padded)
+
+	// HMAC-SHA256(iv || ciphertext)
+	mac := hmac.New(sha256.New, kMac)
+	mac.Write(iv)
+	mac.Write(ciphertext)
+	tag := mac.Sum(nil)
+
+	// итоговый буфер: nonce||iv||ciphertext||tag
+	buf := bytes.Buffer{}
+	buf.Write(nonce)
+	buf.Write(iv)
+	buf.Write(ciphertext)
+	buf.Write(tag)
+	return buf.Bytes(), nil
 }

@@ -10,7 +10,7 @@ import (
 func (s *tokenService) UpdateRefreshToken(refreshToken string, userID int, userKey string) (string, error) {
 	const op = "service.token.refresh.UpdateRefreshToken"
 
-	newRefreshToken, err := utils.CreateRefreshToken(userID, s.cfg.RefreshTokenTTL, s.cfg.PrivateKeyPath)
+	newRefreshToken, err := utils.CreateRefreshToken(userID, s.cfg.JWT.RefreshTokenTTL, s.cfg.JWT.PrivateKeyPath)
 	if err != nil {
 		log.Printf("Error creating access token: %v, location %s \n", err, op)
 		return "", fmt.Errorf("error creating access token: %w", err)

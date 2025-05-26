@@ -10,16 +10,39 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type JWTConfig struct {
+	AccessTokenTTL  time.Duration `env:"ACCESS_TOKEN_TTL" env-required:"true"`
+	RefreshTokenTTL time.Duration `env:"REFRESH_TOKEN_TTL" env-required:"true"`
+	PublicKeyPath   string        `env:"PUBLIC_KEY_PATH" env-required:"true"`
+	PrivateKeyPath  string        `env:"PRIVATE_KEY_PATH" env-required:"true"`
+}
+
+type HTTPServConfig struct {
+	ServerAddr string `env:"HTTP_SERVER_ADDRESS" env-required:"true"`
+}
+
+type LoginLimiterConfig struct {
+	RPC    float64       `env:"LOGIN_LIMITER_RPC" env-required:"true"`
+	Burst  int           `env:"LOGIN_LIMITER_BURST" env-required:"true"`
+	Period time.Duration `env:"LOGIN_LIMITER_PERIOD" env-required:"true"`
+}
+
+type PostgresConfig struct {
+	StoragePath string `env:"STORAGE_PATH" env-required:"true"`
+}
+
+type ExternalAPIsConfig struct {
+	WebClient       string `env:"EXTERNAL_WEB_CLIENT" env-required:"true"`
+	TGClient        string `env:"EXTERNAL_TG_CLIENT" env-required:"true"`
+	QuotaServiceURL string `env:"QUOTA_SERVICE_URL" env-required:"true"`
+}
+
 type Config struct {
-	StoragePath       string        `env:"STORAGE_PATH" env-required:"true"`
-	HTTPServer        string        `env:"HTTP_SERVER_ADDRESS" env-required:"true"`
-	AccessTokenTTL    time.Duration `env:"ACCESS_TOKEN_TTL" env-required:"true"`
-	RefreshTokenTTL   time.Duration `env:"REFRESH_TOKEN_TTL" env-required:"true"`
-	PublicKeyPath     string        `env:"PUBLIC_KEY_PATH" env-required:"true"`
-	PrivateKeyPath    string        `env:"PRIVATE_KEY_PATH" env-required:"true"`
-	ExternalWebClient string        `env:"EXTERNAL_WEB_CLIENT" env-required:"true"`
-	ExternalTGClient  string        `env:"EXTERNAL_TG_CLIENT" env-required:"true"`
-	QuotaServiceURL   string        `env:"QUOTA_SERVICE_URL" env-required:"true"`
+	JWT          JWTConfig
+	HTTPServ     HTTPServConfig
+	LoginLimiter LoginLimiterConfig
+	Postgres     PostgresConfig
+	ExternalAPIs ExternalAPIsConfig
 }
 
 func MustLoad() *Config {

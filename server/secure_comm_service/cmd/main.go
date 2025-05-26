@@ -11,6 +11,7 @@ import (
 	"github.com/1abobik1/SecureComm/internal/handler/cloud_handler"
 	"github.com/1abobik1/SecureComm/internal/handler/handshake_handler"
 	"github.com/1abobik1/SecureComm/internal/handler/quota_handler"
+	"github.com/1abobik1/SecureComm/internal/middleware"
 	"github.com/1abobik1/SecureComm/internal/repository/client_keystore"
 	"github.com/1abobik1/SecureComm/internal/repository/nonce_store"
 	"github.com/1abobik1/SecureComm/internal/repository/server_keystore"
@@ -25,9 +26,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/sirupsen/logrus"
-
-	tb "github.com/didip/tollbooth/v7"
-	"github.com/didip/tollbooth/v7/limiter"
 
 	_ "github.com/1abobik1/SecureComm/docs"
 	swaggerFiles "github.com/swaggo/files"
@@ -127,19 +125,6 @@ func main() {
 	webClient := api.NewWEBClientKeysAPI(sessionStore)
 	tgClient := api.NewTGClientKeysAPI(sessionStore)
 
-	// limiter для /handshake
-	hsLimiter := tb.NewLimiter(cfg.HSLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.HSLimiter.TTL})
-	hsLimiter.SetBurst(cfg.HSLimiter.Burst)
-	hsLimiter.SetIPLookups([]string{
-		"RemoteAddr",
-	})
-	// limiter для остальных апи
-	sessionLimiter := tb.NewLimiter(cfg.SesLimiter.RPC, &limiter.ExpirableOptions{DefaultExpirationTTL: cfg.SesLimiter.TTL})
-	sessionLimiter.SetBurst(cfg.SesLimiter.Burst)
-	sessionLimiter.SetIPLookups([]string{
-		"RemoteAddr",
-	})
-
 	// маршрутизация
 	r := gin.Default()
 
@@ -152,9 +137,11 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// свагер документация
+	// свагер документация(лучше брать доки с папки docs)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	hsLimiter := middleware.NewIPRateLimiter(cfg.HSLimiter.RPC, cfg.HSLimiter.Burst, cfg.HSLimiter.Period)         // middleware limiter для /handshake
+	sessionLimiter := middleware.NewIPRateLimiter(cfg.SesLimiter.RPC, cfg.SesLimiter.Burst, cfg.SesLimiter.Period) // middleware limiter для остальных апи
 	// регистрация всех маршрутов
 	routes.RegisterRoutes(r, cfg, quotaHandler, minioHandler, hsHandler, webClient, tgClient, hsLimiter, sessionLimiter)
 
