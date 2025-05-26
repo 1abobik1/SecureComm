@@ -4,8 +4,10 @@ import {ArrowDownTrayIcon, TrashIcon} from '@heroicons/react/24/outline';
 import ModalDelete from './ModalDelete';
 import TypeFileIcon from './TypeFileIcon';
 import PasswordModal, {PasswordModalRef} from '@/app/ui/PasswordModal';
-import {decryptStoredKey} from "@/app/api/utils/EncryptDecryptKey";
+import {decryptStoredKey} from '@/app/api/utils/EncryptDecryptKey';
 import {Context} from '@/app/api/store/context';
+import {downloadAndDecryptFile} from '@/app/api/utils/CryptoHelper';
+import {getKs} from '@/app/api/utils/ksInStorage';
 
 export type FileCardData = {
   name: string;
@@ -26,12 +28,15 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
 
   const performDownload = async () => {
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to download file');
+      const keys = await getKs();
+      if (!keys) {
+        setAction('download');
+        passwordModalRef.current?.open();
+        return false;
+      }
 
-      const blob = await response.blob();
-      const encryptedFile = new File([blob], name, { type: mime_type });
-      const decryptedBlob = await cryptoHelper.decryptFile(encryptedFile);
+      const [kMac, kEnc] = keys;
+      const decryptedBlob = await downloadAndDecryptFile(url, name, kEnc, kMac, mime_type);
 
       const downloadUrl = URL.createObjectURL(decryptedBlob);
       const a = document.createElement('a');
@@ -43,21 +48,24 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
       URL.revokeObjectURL(downloadUrl);
       return true;
     } catch (error) {
-      console.error('Decryption error:', error);
-      throw error;
+      console.error('Ошибка дешифровки:', error);
+      throw new Error(`Ошибка при скачивании: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
   const performView = async () => {
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed preview');
+      const keys = await getKs();
+      if (!keys) {
+        setAction('view');
+        passwordModalRef.current?.open();
+        return false;
+      }
 
-      const blob = await response.blob();
-      const encryptedFile = new File([blob], name, { type: mime_type });
-      const decryptedBlob = await cryptoHelper.decryptFile(encryptedFile);
+      const [kMac, kEnc] = keys;
+      const decryptedBlob = await downloadAndDecryptFile(url, name, kEnc, kMac, mime_type);
+
       const viewUrl = URL.createObjectURL(decryptedBlob);
-
       window.open(viewUrl, '_blank');
 
       setTimeout(() => {
@@ -66,52 +74,38 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
 
       return true;
     } catch (error) {
-      console.error('Decryption error:', error);
-      throw error;
+      console.error('Ошибка дешифровки:', error);
+      throw new Error(`Ошибка при просмотре: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
   const handleDownload = async () => {
     try {
       setDownloadError(null);
-      store.initializeKey()
-      if (!store.hasCryptoKey) {
-        setAction('download');
-        passwordModalRef.current?.open();
-        return;
-      }
-
       await performDownload();
     } catch (error) {
-      console.error('Download error:', error);
-      setDownloadError('Ошибка при скачивании файла');
+      console.error('Ошибка скачивания:', error);
+      setDownloadError(error instanceof Error ? error.message : 'Ошибка при скачивании файла');
     }
   };
 
   const handleView = async () => {
     try {
       setDownloadError(null);
-      store.initializeKey()
-      if (!store.hasCryptoKey) {
-        setAction('view');
-        passwordModalRef.current?.open();
-        return;
-      }
-
       await performView();
     } catch (error) {
-      console.error('View error:', error);
-      setDownloadError('Ошибка при просмотре файла');
+      console.error('Ошибка просмотра:', error);
+      setDownloadError(error instanceof Error ? error.message : 'Ошибка при просмотре файла');
     }
   };
 
   const handlePasswordSubmit = async (password: string) => {
     try {
       const encKs: {
-        k_enc_iv: string,
-        k_enc_data: string,
-        k_mac_iv: string,
-        k_mac_data: string
+        k_enc_iv: string;
+        k_enc_data: string;
+        k_mac_iv: string;
+        k_mac_data: string;
       } = JSON.parse(localStorage.getItem('encryptedFileKey') as string);
       const success = await decryptStoredKey(encKs, password, store);
       if (!success) {
@@ -128,8 +122,8 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
       passwordModalRef.current?.close();
       return true;
     } catch (error) {
-      console.error('Password submit error:', error);
-      setDownloadError(error.message || 'Ошибка при расшифровке файла');
+      console.error('Ошибка при вводе пароля:', error);
+      setDownloadError(error instanceof Error ? error.message : 'Ошибка при расшифровке файла');
       return false;
     }
   };
@@ -140,7 +134,7 @@ const FileCard: React.FC<FileCardData> = ({ obj_id, created_at, name, url, type,
       setIsModalOpen(false);
       onDelete(obj_id);
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error('Ошибка удаления:', error);
     }
   };
 

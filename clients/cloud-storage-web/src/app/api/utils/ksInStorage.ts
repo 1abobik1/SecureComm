@@ -44,7 +44,7 @@ export async function getKs(): Promise<[CryptoKey, CryptoKey] | null> {
             rawKey2,
             { name: 'AES-CBC', length: 256 },
             true,
-            ['encrypt']
+            ['encrypt', 'decrypt']
         );
 
         return [cryptoKey1, cryptoKey2];

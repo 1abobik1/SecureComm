@@ -57,8 +57,8 @@ const DiskUsageChart: React.FC<DiskUsageChartProps> = ({ fileCounts }) => {
       });
   }, []);
   if (loading || !usage) return <div className="text-gray-600">Загрузка...</div>;
-  const {current_used_gb,current_used_mb,storage_limit_gb } = usage;
-  const ostatok = storage_limit_gb - (current_used_gb + current_used_mb / 1024)
+  const {current_used_gb,current_used_mb,storage_limit_gb, current_used_kb } = usage;
+  const ostatok = storage_limit_gb - (current_used_gb + current_used_mb/1024 )
 
   const chartData = {
     labels: ['Свободно','Занято'],
@@ -87,7 +87,10 @@ const DiskUsageChart: React.FC<DiskUsageChartProps> = ({ fileCounts }) => {
           <Pie data={chartData} options={{ responsive: true }} />
         </div>
         <div className="w-1/2 pl-6">
-          <p className="text-xl">Свободно места: {ostatok.toFixed(3)} GB</p>
+          <p className="text-xl">Свободно места: {ostatok.toFixed(4)} GB</p>
+          <p className="text-xl">Занято в GB: {current_used_gb} GB</p>
+          <p className="text-xl">Занято в MB: {current_used_mb} MB</p>
+          {/*<p className="text-xl">Занято в KB: {current_used_kb} KB</p>*/}
         </div>
       </div>
     </div>
