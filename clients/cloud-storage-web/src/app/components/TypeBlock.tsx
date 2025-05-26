@@ -21,20 +21,36 @@ export default function TypeBlock({ type }) {
     const fetchData = async () => {
       try {
         const response = await CloudService.getAllCloud(type);
-        console.log(response.data)
         const fileData = response.data.file_data;
 
         if (Array.isArray(fileData)) {
-          const files: FileData[] = fileData.map((file: any) => ({
-            obj_id: String(file.obj_id),
-            name: String(file.name),
-            url: String(file.url),
-            created_at: String(file.created_at),
-            mime_type: String(file.mime_type)
-          }));
+          const files: FileData[] = fileData.map((file: any) => {
+            let decodedName = file.name; // По умолчанию используем имя как есть
+            try {
+              if (file.name && /^[A-Za-z0-9+/=]+$/.test(file.name)) {
+                // Декодируем Base64 в строку байтов
+                const binaryString = atob(file.name);
+                // Преобразуем строку байтов в массив Uint8Array
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                  bytes[i] = binaryString.charCodeAt(i);
+                }
+                // Декодируем байты как UTF-8
+                decodedName = new TextDecoder('utf-8').decode(bytes);
+              }
+            } catch (error) {
+              console.warn(`Не удалось раскодировать имя файла: ${file.name}. Оставляем без изменений.`, error);
+            }
+            return {
+              obj_id: String(file.obj_id),
+              name: decodedName,
+              url: String(file.url),
+              created_at: String(file.created_at),
+              mime_type: String(file.mime_type),
+            };
+          });
           setFile(files);
           setFilteredFiles(files);
-
         } else {
           setFile([]);
         }

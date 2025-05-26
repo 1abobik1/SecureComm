@@ -22,7 +22,6 @@ export default function TypeGetAll() {
             </div>
         ),
     });
-
     useEffect(() => {
         const fetchAllTypes = async () => {
             try {
@@ -37,19 +36,39 @@ export default function TypeGetAll() {
                     const fileData = response.data.file_data;
 
                     if (Array.isArray(fileData)) {
-                        result[type] = fileData.map((file) => ({
-                            obj_id: String(file.obj_id),
-                            name: decodeURIComponent(escape(atob(file.name))),
-                            url: String(file.url),
-                            created_at: String(file.created_at),
-                            mime_type: String(file.mime_type),
-                        }));
+                        result[type] = fileData.map((file) => {
+                            let decodedName = file.name; // По умолчанию используем имя как есть
+                            try {
+                                // Проверяем, является ли строка валидной Base64
+                                if (file.name && /^[A-Za-z0-9+/=]+$/.test(file.name)) {
+                                    // Декодируем Base64 в строку байтов
+                                    const binaryString = atob(file.name);
+                                    // Преобразуем строку байтов в массив Uint8Array
+                                    const bytes = new Uint8Array(binaryString.length);
+                                    for (let i = 0; i < binaryString.length; i++) {
+                                        bytes[i] = binaryString.charCodeAt(i);
+                                    }
+                                    // Декодируем байты как UTF-8
+                                    decodedName = new TextDecoder('utf-8').decode(bytes);
+                                }
+                            } catch (error) {
+                                console.warn(`Не удалось раскодировать имя файла: ${file.name}. Оставляем без изменений.`, error);
+                            }
+                            return {
+                                obj_id: String(file.obj_id),
+                                name: decodedName,
+                                url: file.url,
+                                created_at: String(file.created_at),
+                                mime_type: String(file.mime_type),
+                            };
+                        });
                     } else {
                         result[type] = [];
                     }
                 });
 
                 setFilesByType(result);
+                console.log("Обработанные файлы:", result);
             } catch (error) {
                 console.error('Ошибка при получении данных:', error);
                 setIsError(true);
@@ -95,7 +114,7 @@ export default function TypeGetAll() {
 
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-6 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 xl:grid-cols-2 gap-6">
             {types.map((type) => (
                 <div
                     key={type}

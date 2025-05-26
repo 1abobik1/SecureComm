@@ -32,8 +32,22 @@ export async function streamUploadEncryptedFile(
         kMac,
         encrypted
     );
-    const encodedFilename = btoa(encodeURIComponent(file.name));
-    console.log(encodedFilename)
+
+    function encodeFilenameToBase64(filename: string): string {
+        // 1. Преобразуем строку в байты (UTF-8)
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(filename);
+
+        // 2. Конвертируем байты в Base64
+        let binary = '';
+        bytes.forEach((byte) => {
+            binary += String.fromCharCode(byte);
+        });
+
+        return btoa(binary);
+    }
+
+    const encodedFilename = encodeFilenameToBase64(file.name);
 
     const token = localStorage.getItem('token');
     // Подготавливаем заголовки
