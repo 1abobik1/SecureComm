@@ -39,7 +39,7 @@ export default function TypeGetAll() {
                     if (Array.isArray(fileData)) {
                         result[type] = fileData.map((file) => ({
                             obj_id: String(file.obj_id),
-                            name: String(file.name),
+                            name: decodeURIComponent(escape(atob(file.name))),
                             url: String(file.url),
                             created_at: String(file.created_at),
                             mime_type: String(file.mime_type),
