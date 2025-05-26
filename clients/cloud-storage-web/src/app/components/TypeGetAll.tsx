@@ -68,7 +68,6 @@ export default function TypeGetAll() {
                 });
 
                 setFilesByType(result);
-                console.log("Обработанные файлы:", result);
             } catch (error) {
                 console.error('Ошибка при получении данных:', error);
                 setIsError(true);
