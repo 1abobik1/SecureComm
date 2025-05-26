@@ -1,5 +1,5 @@
 import {AxiosResponse} from 'axios';
-import {CloudResponse} from "@/app/api/models/response/CloudResponse";
+import {CloudResponse, OneFileResponse} from "@/app/api/models/response/CloudResponse";
 import {cloudApi} from '@/app/api/http/cloud';
 
 export default class CloudService {
@@ -8,12 +8,15 @@ export default class CloudService {
     }
 
 
-    static async uploadFiles(formData: FormData, config = {}) {
-        return await cloudApi.post(`/files/one/encrypted`, formData, {
+    static async uploadFiles(filename: string, mimeType: string, category: 'photo' | 'video' | 'text' | 'unknown', encryptedBlob: Uint8Array) {
+        return await cloudApi.post<OneFileResponse>(`/files/one/encrypted`,  {
             headers: {
-                'Content-Type': 'multipart/form-data',
+                'X-Orig-Filename': filename,
+                'X-Orig-Mime': mimeType,
+                'X-File-Category': category,
+                'Content-Type': 'application/octet-stream',
             },
-            ...config,
+            encryptedBlob,
         });
     }
 

@@ -6,7 +6,9 @@ export interface CloudResponse {
     status: number;
 }
 export interface OneFileResponse {
-    file_data: FileData;
-    message: string;
-    status: number;
+    created_at: string,
+    mime_type: string,
+    name: string,
+    obj_id: string,
+    url: string
 }

@@ -1,9 +1,10 @@
 'use client';
 
-import React, {forwardRef, useImperativeHandle, useState} from 'react';
+import React, {forwardRef, useContext, useImperativeHandle, useState} from 'react';
 import {X} from 'lucide-react';
 import {observer} from 'mobx-react-lite';
 import {decryptStoredKey} from "@/app/api/utils/EncryptDecryptKey";
+import {Context} from '@/app/api/store/context';
 
 export interface PasswordModalRef {
     open: () => void;
@@ -23,6 +24,7 @@ const PasswordModal = observer(forwardRef<PasswordModalRef, PasswordModalProps>(
         const [password, setPassword] = useState('');
         const [error, setError] = useState<string | null>(null);
         const [isLoading, setIsLoading] = useState(false);
+        const store = useContext(Context);
 
         useImperativeHandle(ref, () => ({
             open: () => {
@@ -40,11 +42,17 @@ const PasswordModal = observer(forwardRef<PasswordModalRef, PasswordModalProps>(
 
             try {
                 let success = false;
+                const encKs: {
+                    k_enc_iv: string,
+                    k_enc_data: string,
+                    k_mac_iv: string,
+                    k_mac_data: string
+                } = JSON.parse(localStorage.getItem('encryptedFileKey') as string);
 
                 if (onSubmit) {
                     success = await onSubmit(password);
                 } else {
-                    success = await decryptStoredKey(password);
+                    success = await decryptStoredKey(encKs,password, store);
                 }
 
                 if (success) {

@@ -1,12 +1,12 @@
 'use client';
 import React, {useContext, useState} from 'react';
-import {Context} from '@/app/_app';
+import {Context} from '@/app/api/store/context';
 import {observer} from "mobx-react-lite";
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { store } = useContext(Context);
+  const  store  = useContext(Context);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">

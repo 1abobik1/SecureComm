@@ -174,7 +174,7 @@ export async function deriveAESKey(keyMaterial: Uint8Array): Promise<CryptoKey> 
         'raw',
         keyMaterial,
         { name: 'AES-CBC', length: 256 },
-        false,
+        true,
         ['encrypt']
     );
 }
@@ -187,7 +187,7 @@ export async function deriveHMACKey(keyMaterial: Uint8Array): Promise<CryptoKey>
             name: 'HMAC',
             hash: { name: 'SHA-256' }
         },
-        false,
+        true,
         ['sign']
     );
 }

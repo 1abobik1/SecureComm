@@ -1,14 +1,14 @@
 'use client';
 
 
-import React, { useState, useContext } from 'react';
-import { Context } from '@/app/_app'; 
-import { useRouter } from 'next/navigation';
+import React, {useContext, useState} from 'react';
+import {Context} from '@/app/api/store/context';
+import {useRouter} from 'next/navigation';
 import Image from 'next/image'
 
 const ProfileCircle = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { store } = useContext(Context);
+  const store = useContext(Context);
   const router = useRouter();
 
   const handleMenuToggle = () => {
@@ -54,7 +54,7 @@ const ProfileCircle = () => {
               className="px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer"
               onClick={handleLogout}
             >
-              Logout
+              Выйти
             </li>
           </ul>
         </div>

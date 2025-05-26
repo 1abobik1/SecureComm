@@ -6,9 +6,7 @@ import {
     generateNonce,
     signDataWithECDSA
 } from "../utils/scrypto";
-import {postJSON} from "../utils/postJSON"
 import {IInitResponse} from "../models/response/IInitResponse";
-import {AxiosResponse} from "axios";
 
 export async function doSession(
     sesURL: string,
@@ -16,7 +14,7 @@ export async function doSession(
     ecdsaPriv: CryptoKey,
     ks: string,
     payload: Uint8Array
-): Promise<string> {
+): Promise<void> {
     // 1. Подготовка данных (timestamp + nonce + payload)
     const timestamp = new Uint8Array(8);
     const timestampValue = BigInt(Date.now());
@@ -61,17 +59,17 @@ export async function doSession(
     const clientSignature = await signDataWithECDSA(encryptedMessage, ecdsaPriv);
 
     // 7. Отправка
-    const response: AxiosResponse<{ plaintext: string }> = await postJSON(
-        sesURL,
-        {
-            client_signature: clientSignature,
-            encrypted_message: btoa(String.fromCharCode(...encryptedMessage))
-        },
-        { 'X-Client-ID': initResp.client_id }
-    );
+    // const response: AxiosResponse<{ plaintext: string }> = await postJSON(
+    //     sesURL,
+    //     {
+    //         client_signature: clientSignature,
+    //         encrypted_message: btoa(String.fromCharCode(...encryptedMessage))
+    //     },
+    //
+    // );
 
-    if (response.status !== 200) {
-        throw new Error(`Session test failed: ${response.status} ${JSON.stringify(response.data)}`);
-    }
-    return response.data.plaintext;
+    // if (response.status !== 200) {
+    //     throw new Error(`Session test failed: ${response.status} ${JSON.stringify(response.data)}`);
+    // }
+    // return response.data.plaintext;
 }

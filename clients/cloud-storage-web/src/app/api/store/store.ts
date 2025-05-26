@@ -3,15 +3,16 @@ import AuthService from "@/app/api/services/AuthServices";
 import axios from 'axios';
 import {AuthResponse} from "../models/response/AuthResponse";
 import {AUTH_API_URL} from "@/app/api/http/urls";
-import {decryptStoredKeyLogin, encryptAndStoreKey, importKeyFromBase64} from '@/app/api/utils/EncryptDecryptKey';
+import {decryptStoredKey, encryptAndStoreKey} from '@/app/api/utils/EncryptDecryptKey';
 import {doHandshake} from "@/app/api/services/HandshakeService/HandshakeService";
-import {removeKs, setKs} from "@/app/api/utils/ksInStorage";
-
+import {getKs, removeKs} from "@/app/api/utils/ksInStorage";
+import {ksToKmacKenc} from "@/app/api/utils/ksToKmac-Kenc";
 
 export default class Store {
 
     isAuth = false;
     isLoading = false;
+    hasCryptoKey = false;
     platform: 'web' = 'web';
 
     constructor() {
@@ -27,29 +28,34 @@ export default class Store {
         this.isLoading = bool;
     }
 
+    async initializeKey() {
+        this.hasCryptoKey = await getKs() !== null;
+    }
+
 
     async login(email: string, password: string) {
-            try {
-                const response = await AuthService.login(email, password, this.platform);
-                const encryptedKs = response.data.ks;
-                localStorage.setItem('encryptedFileKey', JSON.stringify(encryptedKs));
-                await decryptStoredKeyLogin(encryptedKs, password);
-                localStorage.setItem('token', response.data.access_token);
-                this.setAuth(true);
-            } catch (e) {
+        try {
+            const response = await AuthService.login(email, password, this.platform);
+            const encryptedKs = response.data.ks;
+            localStorage.setItem('encryptedFileKey', JSON.stringify(encryptedKs));
+            await decryptStoredKey(encryptedKs, password, this);
+            this.hasCryptoKey = true;
+            localStorage.setItem('token', response.data.access_token);
+            this.setAuth(true);
+        } catch (e) {
 
-            }
         }
+    }
 
     async signup(email: string, password: string) {
         try {
             const response = await AuthService.signup(email, password, this.platform);
             localStorage.setItem('token', response.data.access_token);
             const ks64 = await doHandshake();
-            if (ks64!==undefined){
-                const cryptoKey = await importKeyFromBase64(ks64);
-                await encryptAndStoreKey(cryptoKey, password);
-                setKs(cryptoKey, 60 * 8)
+            if (ks64 !== undefined) {
+                const [kMac, Kenc] = await ksToKmacKenc(ks64, this);
+                await encryptAndStoreKey(kMac,Kenc,password);
+                this.hasCryptoKey = true;
                 this.setAuth(true);
             }
 
@@ -70,6 +76,7 @@ export default class Store {
             await AuthService.logout(this.platform);
             localStorage.removeItem('token');
             removeKs();
+            this.hasCryptoKey = false;
             localStorage.removeItem('encryptedFileKey')
             localStorage.removeItem('lastPath');
             this.setAuth(false);

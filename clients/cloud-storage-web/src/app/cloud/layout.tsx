@@ -1,14 +1,14 @@
-'use client';
+'use client'
 
 import React, {useContext, useEffect} from 'react';
 import {usePathname, useRouter} from 'next/navigation';
-import {Context} from '@/app/_app';
+import {Context} from '@/app/api/store/context';
 import SideBar from '@/app/ui/SideBar';
 import Header from '../ui/Header';
 import {observer} from 'mobx-react-lite';
 
 function Layout({ children }: { children: React.ReactNode }) {
-    const { store } = useContext(Context);
+    const store = useContext(Context);
     const router = useRouter();
     const pathname = usePathname();
 

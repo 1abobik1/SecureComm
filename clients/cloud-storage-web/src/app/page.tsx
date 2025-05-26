@@ -1,13 +1,13 @@
 'use client'
 import {useContext, useEffect, useState} from "react";
-import {Context} from "@/app/_app";
+import {Context} from '@/app/api/store/context';
 import LoginForm from "./api/components/LoginForm";
 import {observer} from "mobx-react-lite";
 import {useRouter} from 'next/navigation';
 import {Loader2} from 'lucide-react';
 
 function Home() {
-    const { store } = useContext(Context);
+    const store = useContext(Context);
     const router = useRouter();
     const [initialCheckDone, setInitialCheckDone] = useState(false);
 
