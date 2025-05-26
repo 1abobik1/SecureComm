@@ -126,5 +126,5 @@ pip install -r requirements.txt
 ```bash
 python bot_tg.py
 ```
-## 4) Чтобы протестировать телеграм-бота необходимо в телеграме в поиске ввести ``` @Cloud_Software_bot ``` и начать диалог
+## 4) Чтобы протестировать Telegram-бот, необходимо в приложении Telegram найти в поиске @Cloud_Software_bot и начать общение.
 
