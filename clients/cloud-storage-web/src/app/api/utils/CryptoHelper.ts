@@ -1,104 +1,112 @@
-interface UploadEncryptedFileOptions {
-    file: File;
-    cloudURL: string;
-    category: string;
-    kEnc: CryptoKey; // AES-CBC ключ
-    kMac: CryptoKey; // HMAC ключ
-    chunkSize?: number;
-    onProgress?: (progress: number) => void;
-}
+/**
+ * Потоково загружает зашифрованный файл на сервер, используя AES-CBC и HMAC-SHA256
+ *
+ * @param file - Файл для загрузки (из input или Drag'n'Drop)
+ * @param cloudUrl - URL эндпоинта для загрузки
+ * @param category - Категория файла (photo, video, text, unknown)
+ * @param kEnc - Ключ шифрования AES (32 байта)
+ * @param kMac - Ключ HMAC-SHA256 (32 байта)
+ * @returns Ответ сервера с метаданными
+ * @throws {Error} Если загрузка не удалась
+ */
+export async function streamUploadEncryptedFile(
+    file: File,
+    cloudUrl: string,
+    category: string,
+    kEnc: CryptoKey,
+    kMac: CryptoKey
+): Promise<any> {
 
-export async function streamingUploadEncryptedFile({
-                                                       file,
-                                                       cloudURL = 'http://localhost:8080/files/one/encrypted',
-                                                       category = 'unknown',
-                                                       kEnc,
-                                                       kMac,
-                                                       chunkSize = 104857600, // 100MB по умолчанию
-                                                       onProgress}: UploadEncryptedFileOptions): Promise<void> {
-    // Генерируем IV (16 байт для AES-CBC)
+    // Генерируем IV и nonce
     const iv = crypto.getRandomValues(new Uint8Array(16));
+    const nonce = crypto.getRandomValues(new Uint8Array(16));
 
-    // Создаем TransformStream для шифрования и вычисления HMAC
-    let hmacInitialized = false;
-    let bytesProcessed = 0;
+    // Инициализируем AES-CBC
+    const cryptoKeyEnc = kEnc;
 
-    const encryptAndHMACStream = new TransformStream({
+    // Инициализируем HMAC
+    const cryptoKeyMac = kMac;
+    const encodedFilename = btoa(encodeURIComponent(file.name));
+
+
+    // Подготавливаем заголовки
+    const headers = new Headers({
+        "X-File-Category": category,
+        "X-Orig-Filename": encodedFilename,
+        "X-Orig-Mime": file.type || 'application/octet-stream',
+        "Content-Type": "application/octet-stream"
+    });
+
+    // Создаем преобразователь для шифрования
+    const encryptTransform = new TransformStream({
         async transform(chunk, controller) {
-            if (!hmacInitialized) {
-                // Первый чанк - добавляем IV и инициализируем HMAC
-                controller.enqueue(iv);
-                await crypto.subtle.sign(
-                    { name: 'HMAC' },
-                    kMac,
-                    iv
-                );
-                hmacInitialized = true;
-            }
-
-            // Шифруем данные
             const encrypted = await crypto.subtle.encrypt(
-                {
-                    name: 'AES-CBC',
-                    iv: iv
-                },
-                kEnc,
+                { name: 'AES-CBC', iv },
+                cryptoKeyEnc,
                 chunk
             );
-
-            // Обновляем HMAC
-            await crypto.subtle.sign(
-                { name: 'HMAC' },
-                kMac,
-                encrypted
-            );
-
-            bytesProcessed += chunk.byteLength;
-            if (onProgress) {
-                onProgress(bytesProcessed / file.size);
-            }
-
             controller.enqueue(new Uint8Array(encrypted));
         },
-
         async flush(controller) {
-            // Добавляем финальный HMAC
-            const hmac = await crypto.subtle.sign(
-                { name: 'HMAC' },
-                kMac,
-                new ArrayBuffer(0) // Финализируем HMAC
+            // Финализируем шифрование (не требуется для AES-CBC в Web Crypto API)
+        }
+    });
+
+    // Создаем преобразователь для HMAC
+    let hmac = new Uint8Array();
+    const hmacTransform = new TransformStream({
+        async transform(chunk, controller) {
+            const signature = await crypto.subtle.sign(
+                'HMAC',
+                cryptoKeyMac,
+                chunk
             );
-            controller.enqueue(new Uint8Array(hmac));
+            hmac = new Uint8Array(signature);
+            controller.enqueue(chunk);
         }
     });
 
     // Создаем поток для чтения файла
     const fileStream = file.stream();
 
-    // Конвейер потоков
-    const encryptedStream = fileStream
-        .pipeThrough(new TransformStream({
-            transform(chunk, controller) {
-                controller.enqueue(new Uint8Array(chunk));
-            }
-        }))
-        .pipeThrough(encryptAndHMACStream);
+    // Собираем все части в один поток
+    const combinedStream = new ReadableStream({
+        async start(controller) {
+            // Сначала отправляем nonce и IV
+            controller.enqueue(nonce);
+            controller.enqueue(iv);
 
-    // Отправляем запрос
-    const response = await fetch(cloudURL, {
-        method: 'POST',
-        headers: {
-            'X-File-Category': category,
-            'X-Orig-Filename': file.name,
-            'X-Orig-Mime': file.type,
-            'Content-Type': 'application/octet-stream',
-            'Content-Length': file.size.toString()
-        },
-        body: encryptedStream
+            // Затем шифрованные данные
+            await fileStream.pipeThrough(encryptTransform)
+                .pipeThrough(hmacTransform)
+                .pipeTo(new WritableStream({
+                    write(chunk) {
+                        controller.enqueue(chunk);
+                    },
+                    close() {
+                        // В конце отправляем HMAC
+                        controller.enqueue(hmac);
+                        controller.close();
+                    }
+                }));
+        }
     });
 
-    if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Upload failed: ${response.status} - ${errorBody}`);
+    try {
+        const response = await fetch(cloudUrl, {
+            method: 'POST',
+            headers,
+            body: combinedStream,
+            duplex: 'half'
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Ошибка загрузки ${response.status}: ${errorText}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        throw new Error(`Ошибка при загрузке: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
