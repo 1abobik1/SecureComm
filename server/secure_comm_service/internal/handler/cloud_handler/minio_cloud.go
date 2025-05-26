@@ -53,7 +53,16 @@ func (h *MinioHandler) CreateOneEncrypted(c *gin.Context) {
 		return
 	}
 
-	origName := c.GetHeader("X-Orig-Filename")
+	origNameB64 := c.GetHeader("X-Orig-Filename")
+	logrus.Infof("X-Orig-Filename: %v", origNameB64)
+	origNameByte, err := utils.Decode(origNameB64)
+	if err != nil {
+		logrus.Error(err)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	origName := string(origNameByte)
+
 	origMime := c.GetHeader("X-Orig-Mime")
 	category := strings.ToLower(c.GetHeader("X-File-Category"))
 	if origName == "" || origMime == "" || category == "" {
