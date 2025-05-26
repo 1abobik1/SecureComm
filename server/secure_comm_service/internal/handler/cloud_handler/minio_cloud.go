@@ -27,15 +27,16 @@ import (
 //
 // Тело запроса (body) — это уже полностью зашифрованный поток (будь-то AES-CBC+HMAC по чанкам).
 //
-// @Summary      Загрузка зашифрованного файла “на лету”
+// @Summary      Загрузка зашифрованного файла в MinIO(объектное хранилище) “на лету”
 // @Description  Токен авторизации + зашифрованный поток в body + метаданные в заголовках
 // @Tags         Files
-// @Accept       */*
+// @Accept       application/octet-stream
 // @Produce      json
-// @Param        Authorization header string true "Bearer {token}"
-// @Param        X-Orig-Filename header string true "Оригинальное имя файла (например photo.jpg)"
-// @Param        X-Orig-Mime     header string true "Оригинальный MIME-тип (например image/jpeg)"
-// @Param        X-File-Category header string true "Категория файла (photo, video, text, unknown)"
+// @Param        Authorization     header string true "Bearer {token}"
+// @Param        X-Orig-Filename   header string true "Оригинальное имя файла (например photo.jpg)"
+// @Param        X-Orig-Mime       header string true "Оригинальный MIME-тип (например image/jpeg)"
+// @Param        X-File-Category   header string true "Категория файла (photo, video, text, unknown)"
+// @Param 		file body []byte true "Зашифрованный бинарный поток (application/octet-stream)"
 // @Success      200  {object}  dto.FileResponse  "Успешно: JSON с metadata + presigned URL"
 // @Failure      400  {object}  map[string]string "Некорректные заголовки или body"
 // @Failure      401  {object}  map[string]string "Проблема с авторизацией"

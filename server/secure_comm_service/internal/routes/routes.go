@@ -26,7 +26,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handl
 
 		sGroup := authGroup.Group("/session")
 		{
-			sGroup.POST("/test", hsLimiterMiddleware, hsHandler.SessionTester)
+			sGroup.POST("/test", sessionLimiterMiddleware, hsHandler.SessionTester)
 		}
 
 		// Файловое API
