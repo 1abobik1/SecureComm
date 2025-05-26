@@ -1,15 +1,16 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"time"
 
 	"example_client/internal/client"
+	"example_client/internal/dto"
 	fileloader "example_client/internal/file_loader"
+	"example_client/internal/utils"
 )
 
 func main() {
@@ -44,8 +45,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "SignUp failed: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("Успешная регистрация. Получен access_token:", accessToken)
-	fmt.Println("Получен refresh_token (для platform=tg-bot):", refreshToken)
+	fmt.Printf("\nУспешная регистрация. Получен ACCESS_TOKEN: \n{\n %v \n}\n", accessToken)
+	fmt.Printf("\nПолучен REFRESH_TOKEN (для platform=tg-bot):\n{\n %v \n}\n", refreshToken)
 
 	// Загружаем ключи клиента
 	rsaPubDER, err := fileloader.LoadDERPub(*rsaPubPath)
@@ -68,8 +69,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Init Handshake failed: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Init resp: %+v\n", initResp)
-	fmt.Println("Init handshake time:", time.Since(startInit))
+	fmt.Printf("\nInit resp: \n{\n client_id:  %v\n ecdsa_pub_server:  %v\n nonce2:  %v\n rsa_pub_server:  %v\n signature2:  %v \n}\n",
+		initResp.ClientID, initResp.ECDSAPubServer, initResp.Nonce2, initResp.RSAPubServer, initResp.Signature2)
+	fmt.Printf("\nInit handshake time: \n{\n %v \n}\n", time.Since(startInit))
 
 	// Finalize Handshake (с заголовком Authorization)
 	startFin := time.Now()
@@ -78,7 +80,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Finalize Handshake failed: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("Finalize handshake time:", time.Since(startFin))
+	fmt.Printf("Finalize handshake time: \n{\n %v \n}\n", time.Since(startFin))
 
 	// session test
 	// startSesTest := time.Now()
@@ -88,36 +90,30 @@ func main() {
 	// fmt.Println("Session test time:", time.Since(startSesTest))
 
 	// здесь можно использовать методы NotStreamingUploadEncryptedFile(для загрузки мелких файлов) или StreamingUploadEncryptedFile(для загрузки больших файлов)
-	//var rBody []byte
+	var rBody []byte
 	if *uploadFile != "" {
-		fmt.Printf("Загружаем файл «%s» в зашифрованном виде на %s …\n", *uploadFile, *cloudURL)
+		fmt.Printf("\nЗагружаем файл «%s» в зашифрованном виде на %s …\n", *uploadFile, *cloudURL)
 		respBody, err := client.NotStreamingUploadEncryptedFile(*uploadFile, *cloudURL, accessToken, *category, session.KEnc, session.KMac)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "uploadEncryptedFile error: %v\n", err)
 			os.Exit(1)
 		}
 		rBody = respBody
-		fmt.Println("Ответ от cloud-API:\n", string(respBody))
 	}
 
-	// var fileResp dto.FileResponse
-	// if err := json.Unmarshal(rBody, &fileResp); err != nil {
-	// 	fmt.Fprintf(os.Stderr, "не удалось разобрать JSON ответа: %v\n", err)
-	// 	os.Exit(1)
-	// }
+	var fileResp dto.FileResponse
+	if err := json.Unmarshal(rBody, &fileResp); err != nil {
+		fmt.Fprintf(os.Stderr, "не удалось разобрать JSON ответа: %v\n", err)
+		os.Exit(1)
+	}
 
-	// outDir := "out_dir/downloaded_photo.jpg"
+	fmt.Printf("Ответ от cloud-API: \n{\n name:  %v\n created_at:  %v\n obj_id:  %v\n url:  %v\n mime_type:  %v \n}\n", 
+	fileResp.Name, fileResp.Created_At, fileResp.ObjID, fileResp.Url, fileResp.MimeType)
 
-	// if err := utils.DownLoadFileByURL(fileResp.Url, outDir, session.KEnc, session.KMac); err != nil {
-	// 	fmt.Printf("Ошибка: %v\n", err)
-	// 	os.Exit(1)
-	// }
-}
+	outDir := "out_dir/downloaded_photo.jpg"
 
-// generateBigMsg генерирует base64-строку размером sizeBytes.
-// В примере используется для session-test.
-func generateBigMsg(sizeBytes int) string {
-	b := make([]byte, sizeBytes)
-	rand.Read(b)
-	return base64.StdEncoding.EncodeToString(b)
+	if err := utils.DownLoadFileByURL(fileResp.Url, outDir, session.KEnc, session.KMac); err != nil {
+		fmt.Printf("Ошибка: %v\n", err)
+		os.Exit(1)
+	}
 }

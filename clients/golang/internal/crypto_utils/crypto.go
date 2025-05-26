@@ -34,6 +34,14 @@ func SignPayloadECDSA(priv *ecdsa.PrivateKey, data []byte) (string, error) {
 	return base64.StdEncoding.EncodeToString(der), nil
 }
 
+// generateBigMsg генерирует base64-строку размером sizeBytes.
+// В примере используется для session-test.
+func GenerateBigMsg(sizeBytes int) string {
+	b := make([]byte, sizeBytes)
+	rand.Read(b)
+	return base64.StdEncoding.EncodeToString(b)
+}
+
 func GenerateRandBytes(size int) (string, []byte, error) {
 	buf := make([]byte, size)
 	if _, err := rand.Read(buf); err != nil {

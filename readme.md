@@ -47,10 +47,11 @@ MINIO_URL_LIFETIME=8h
 
 #Postgres параметры
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=dima15042004
+POSTGRES_PASSWORD=MyPASS
 POSTGRES_DB=cloud_service
-STORAGE_PATH=postgres://postgres:dima15042004@user_usage_db:5432/cloud_service?sslmode=disable
+STORAGE_PATH=postgres://postgres:MyPASS@user_usage_db:5432/cloud_service?sslmode=disable
 ```
+> **Важно:** Замените `MyPASS` на ваш реальный пароль от PostgreSQL.
 > После запуска сервер будет доступен по адресу `http://localhost:8080`
 
 ---
@@ -61,9 +62,9 @@ STORAGE_PATH=postgres://postgres:dima15042004@user_usage_db:5432/cloud_service?s
 ```ini
 # postgres параметры
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=dima15042004
+POSTGRES_PASSWORD=MyPASS
 POSTGRES_DB=auth-service
-STORAGE_PATH=postgres://postgres:dima15042004@auth_db:5432/auth-service?sslmode=disable
+STORAGE_PATH=postgres://postgres:MyPASS@auth_db:5432/auth-service?sslmode=disable
 
 # сервер
 HTTP_SERVER_ADDRESS=0.0.0.0:8081
