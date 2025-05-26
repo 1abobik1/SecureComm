@@ -65,7 +65,7 @@ const percentUsed = (totalMbUsed / totalMbLimit) * 100;
 
   return (
     <div className="p-2 max-w">
-      <h3 className="text-lg font-jetbrains text-blue-600 mb-2">Тариф - {plan_name}:</h3>
+      <h3 className="text-lg font-jetbrains text-blue-600 mb-2">Тариф - Бесплатный:</h3>
       <div className="w-full h-10 bg-gray-200 rounded-lg flex items-center overflow-hidden">
         <div
           className={`h-full text-white  flex items-center transition-all duration-500 ${
@@ -84,7 +84,7 @@ const percentUsed = (totalMbUsed / totalMbLimit) * 100;
 
       </div>
       <div className="text-sm font-semibold text-gray-800">
-        Занято {current_used_gb}.{Math.round(current_used_mb)} ГБ из {usage.storage_limit_gb} ГБ
+        Занято {(current_used_gb + current_used_mb/1024).toFixed(2)} ГБ из {usage.storage_limit_gb} ГБ
       </div>
     </div>
   );

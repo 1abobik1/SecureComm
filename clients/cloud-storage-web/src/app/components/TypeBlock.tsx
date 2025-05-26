@@ -84,8 +84,8 @@ export default function TypeBlock({ type }) {
   const handleNameSortChange = () => {
     const sorted = [...filteredFiles].sort((a, b) => {
       return nameSortAsc
-        ? a.name.localeCompare(b.name)
-        : b.name.localeCompare(a.name);
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
     });
     setFilteredFiles(sorted);
     setNameSortAsc(!nameSortAsc);
@@ -94,11 +94,11 @@ export default function TypeBlock({ type }) {
 
 
   if (isLoading) return(<div className=" inset-0 bg-white/70 backdrop-blur-sm z-10 flex items-center justify-center">
-  <div className="flex flex-col items-center">
-    <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-2" />
-    <span className="text-gray-700 text-sm">Загрузка файлов...</span>
-  </div>
-</div>)
+    <div className="flex flex-col items-center">
+      <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-2" />
+      <span className="text-gray-700 text-sm">Загрузка файлов...</span>
+    </div>
+  </div>)
 
   if (isError) return <p>Произошла ошибка при загрузке данных.</p>;
 
@@ -107,68 +107,65 @@ export default function TypeBlock({ type }) {
   };
 
   return (
-    <>
+      <>
 
 
 
-      {filteredFiles.length === 0 ? (
-        <div className="p-10 text-center text-gray-600">
-          <div className="text-5xl mb-4">📂</div>
-          <p className="text-lg">Нет файлов.</p>
-          <div className="p-4">
-            <FileUploader/>
-          </div>
+        {filteredFiles.length === 0 ? (
+            <div className="p-10 text-center text-gray-600">
+              <div className="text-5xl mb-4">📂</div>
+              <p className="text-lg">Нет файлов.</p>
+              <div className="p-4">
+                <FileUploader/>
+              </div>
 
-        </div>
-      ) : (
-        <div className="sm:p-6 p-2 mx-auto bg-white rounded shadow ">
-          <h2 className="text-xl font-jetbrains  mb-4 flex items-center gap-2">
-            <TypeFileIcon type={type}/><div className="text-blue-500">{type}</div>
-          </h2>
-
-          <div className="flex flex-row justify-between">
-            <div className="mb-4">
-              <button
-                onClick={handleNameSortChange}
-                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded flex items-center"
-              >
-                Названию&nbsp;
-                {nameSortAsc ? <span className="ml-1">▲</span> : <span className="ml-1">▼</span>}
-              </button>
             </div>
+        ) : (
+            <div className="sm:p-6 p-2 mx-auto bg-white rounded shadow ">
+              <h2 className="text-xl font-jetbrains  mb-4 flex items-center gap-2">
+                <TypeFileIcon type={type}/><div className="text-blue-500">{type}</div>
+              </h2>
 
-            <div className="mb-4 mr-28">
-              <button
-                onClick={() => {
-                  handleSortChange(timeSort ? 'desc' : 'asc');
-                  setTimeSort(!timeSort);
-                }}
-                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded flex items-center"
-              >
-                Дате&nbsp;
-                {timeSort ? <span className="ml-2">▲</span> : <span className="ml-2">▼</span>}
-              </button>
+              <div className="flex flex-row justify-between">
+                <div className="mb-4">
+                  <button
+                      onClick={handleNameSortChange}
+                      className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded flex items-center"
+                  >
+                    Названию&nbsp;
+                    {nameSortAsc ? <span className="ml-1">▲</span> : <span className="ml-1">▼</span>}
+                  </button>
+                </div>
+
+                <div className="mb-4 mr-28">
+                  <button
+                      onClick={() => {
+                        handleSortChange(timeSort ? 'desc' : 'asc');
+                        setTimeSort(!timeSort);
+                      }}
+                      className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded flex items-center"
+                  >
+                    Дате&nbsp;
+                    {timeSort ? <span className="ml-2">▲</span> : <span className="ml-2">▼</span>}
+                  </button>
+                </div>
+              </div>
+
+              {filteredFiles.map((item) => (
+                  <FileCard
+                      key={item.obj_id}
+                      obj_id={item.obj_id}
+                      name={item.name}
+                      url={item.url}
+                      created_at={item.created_at}
+                      type={type}
+                      mime_type={item.mime_type}
+                      onDelete={handleDelete}
+                  />
+              ))}
             </div>
-          </div>
-
-          {filteredFiles.map((item) => (
-            <FileCard
-              key={item.obj_id}
-              obj_id={item.obj_id}
-              name={item.name}
-              url={item.url}
-              created_at={item.created_at}
-              type={type}
-              mime_type={item.mime_type}
-              onDelete={handleDelete}
-            />
-          ))}
-        </div>
-      )}
-    </>
+        )}
+      </>
   );
-
-
-
-
+  
 };

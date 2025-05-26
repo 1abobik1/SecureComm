@@ -9,6 +9,7 @@ import {decryptStoredKey} from "@/app/api/utils/EncryptDecryptKey";
 import PasswordModal, {PasswordModalRef} from "@/app/ui/PasswordModal";
 import {getKs} from "@/app/api/utils/ksInStorage";
 import {streamUploadEncryptedFile} from "@/app/api/utils/CryptoHelper";
+import {determineFileCategory} from "@/app/api/utils/defineCategory";
 
 
 const FileUploader = observer(() => {
@@ -85,7 +86,8 @@ const FileUploader = observer(() => {
 
             // Обрабатываем каждый файл
             for (const file of Array.from(files)) {
-                await streamUploadEncryptedFile(file, 'http://localhost:8080/files/one/encrypted', "unknown", kEnc, kMac );
+                const category = determineFileCategory(file.type);
+                await streamUploadEncryptedFile(file, 'http://localhost:8080/files/one/encrypted', category, kEnc, kMac );
             }
 
             const elapsedTime = Date.now() - startTime;

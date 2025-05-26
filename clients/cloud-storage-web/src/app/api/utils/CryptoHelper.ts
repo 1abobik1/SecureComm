@@ -16,23 +16,37 @@ export async function streamUploadEncryptedFile(
     kEnc: CryptoKey,
     kMac: CryptoKey
 ): Promise<any> {
-
     // Генерируем IV и nonce
     const iv = crypto.getRandomValues(new Uint8Array(16));
     const nonce = crypto.getRandomValues(new Uint8Array(16));
 
+    // Читаем файл и добавляем PKCS7 padding
     const fileData = await file.arrayBuffer();
+    const blockSize = 16; // AES block size
+    const pad = blockSize - (fileData.byteLength % blockSize);
+    const paddedData = new Uint8Array(fileData.byteLength + pad);
+    paddedData.set(new Uint8Array(fileData));
+    paddedData.fill(pad, fileData.byteLength);
+
+    // Шифруем
     const encrypted = await crypto.subtle.encrypt(
         { name: 'AES-CBC', iv },
         kEnc,
-        fileData
+        paddedData
     );
+
+    // Вычисляем HMAC (iv + ciphertext)
+    const dataToMac = new Uint8Array(iv.length + encrypted.byteLength);
+    dataToMac.set(iv, 0);
+    dataToMac.set(new Uint8Array(encrypted), iv.length);
+
     const hmac = await crypto.subtle.sign(
         'HMAC',
         kMac,
-        encrypted
+        dataToMac
     );
 
+    // Кодируем имя файла
     function encodeFilenameToBase64(filename: string): string {
         // 1. Преобразуем строку в байты (UTF-8)
         const encoder = new TextEncoder();
@@ -50,7 +64,6 @@ export async function streamUploadEncryptedFile(
     const encodedFilename = encodeFilenameToBase64(file.name);
 
     const token = localStorage.getItem('token');
-    // Подготавливаем заголовки
     const headers = new Headers({
         'Authorization': `Bearer ${token}`,
         "X-File-Category": category,
@@ -59,7 +72,7 @@ export async function streamUploadEncryptedFile(
         "Content-Type": "application/octet-stream"
     });
 
-
+    // Формируем данные: nonce + iv + ciphertext + hmac
     const combinedData = new Blob([
         nonce,
         iv,
@@ -106,105 +119,78 @@ export async function downloadAndDecryptFile(
     mime_type: string
 ): Promise<Blob> {
     try {
-        // Выполняем GET запрос для получения потока данных
-        const response = await fetch(url, {
-            method: 'GET',
-        });
-
+        const response = await fetch(url, { method: 'GET' });
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`Ошибка загрузки ${response.status}: ${errorText}`);
+            throw new Error(`Download error ${response.status}: ${errorText}`);
         }
 
-        // Получаем поток данных
-        const stream = response.body;
-        if (!stream) {
-            throw new Error('Не удалось получить поток данных');
+        const data = await response.arrayBuffer();
+        const bytes = new Uint8Array(data);
+
+        // Validate minimum length (nonce + iv + min 1 block + hmac)
+        if (bytes.length < 16 + 16 + 16 + 32) {
+            throw new Error(`Invalid data length: ${bytes.length} bytes`);
         }
 
-        // Читаем поток в ArrayBuffer
-        const reader = stream.getReader();
-        const chunks: Uint8Array[] = [];
-        let totalLength = 0;
+        // Parse components
+        const nonce = bytes.slice(0, 16);
+        const iv = bytes.slice(16, 32);
+        const ciphertext = bytes.slice(32, bytes.length - 32);
+        const receivedHmac = bytes.slice(bytes.length - 32);
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            totalLength += value.length;
-        }
+        // Compute HMAC (iv + ciphertext)
+        const hmacData = new Uint8Array(iv.length + ciphertext.length);
+        hmacData.set(iv, 0);
+        hmacData.set(ciphertext, iv.length);
 
-        // Объединяем все куски в один ArrayBuffer
-        const data = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const chunk of chunks) {
-            data.set(chunk, offset);
-            offset += chunk.length;
-        }
-
-        // Логируем длину данных
-        console.log('Получено байт:', totalLength);
-
-        // Проверяем минимальную длину данных (nonce: 16 + iv: 16 + tag: 32 + минимум 1 байт шифротекста)
-        if (totalLength < 16 + 16 + 32 + 1) {
-            throw new Error(`Недостаточная длина данных для дешифровки: ${totalLength} байт`);
-        }
-
-        // Разбираем данные: nonce (16), iv (16), ciphertext (все, кроме последних 32), tag (32)
-        const nonce = data.slice(0, 16);
-        const iv = data.slice(16, 32);
-        const ciphertext = data.slice(32, data.length - 32);
-        const receivedHmac = data.slice(data.length - 32);
-
-        // Логируем разбиение
-        console.log('Nonce:', Array.from(nonce));
-        console.log('IV:', Array.from(iv));
-        console.log('Ciphertext length:', ciphertext.length);
-        console.log('Received HMAC:', Array.from(receivedHmac));
-
-        // Вычисляем HMAC для проверки
-        const hmac = await crypto.subtle.sign(
-            'HMAC',
-            kMac,
-            new Uint8Array([...iv, ...ciphertext])
+        const computedHmac = new Uint8Array(
+            await crypto.subtle.sign('HMAC', kMac, hmacData)
         );
-        const computedHmac = new Uint8Array(hmac);
-        console.log('Computed HMAC:', Array.from(computedHmac));
 
-        // Сравниваем HMAC безопасным способом
-        if (computedHmac.length !== receivedHmac.length) {
-            throw new Error(`Недопустимая длина HMAC: ${computedHmac.length} != ${receivedHmac.length}`);
+        // Timing-safe comparison
+        if (!compareHmac(computedHmac, receivedHmac)) {
+            throw new Error('HMAC verification failed');
         }
-        let isHmacValid = true;
-        for (let i = 0; i < computedHmac.length; i++) {
-            isHmacValid &&= computedHmac[i] === receivedHmac[i];
-        }
-        // if (!isHmacValid) {
-        //     throw new Error('Проверка HMAC не пройдена');
-        // }
 
-        // Дешифруем данные
+        // Decrypt
         const decrypted = await crypto.subtle.decrypt(
             { name: 'AES-CBC', iv },
             kEnc,
             ciphertext
         );
 
-        // Убираем PKCS#7 padding
+        // Remove PKCS#7 padding
         const decryptedBytes = new Uint8Array(decrypted);
-        const paddingLength = decryptedBytes[decryptedBytes.length - 1];
-        if (
-            paddingLength > 16 ||
-            paddingLength === 0 ||
-            !decryptedBytes.slice(-paddingLength).every((byte) => byte === paddingLength))
-        {
+        const pad = decryptedBytes[decryptedBytes.length - 1];
 
+        // Validate padding
+        if (pad < 1 || pad > 16) {
+            throw new Error(`Invalid padding value: ${pad}`);
         }
-        const plaintext = decryptedBytes.slice(0, decryptedBytes.length - paddingLength);
 
-        // Создаём Blob с указанным MIME-типом
+        // Verify all padding bytes
+        for (let i = decryptedBytes.length - pad; i < decryptedBytes.length; i++) {
+            if (decryptedBytes[i] !== pad) {
+                throw new Error('Invalid padding bytes');
+            }
+        }
+
+        const plaintext = decryptedBytes.slice(0, decryptedBytes.length - pad);
+
         return new Blob([plaintext], { type: mime_type });
     } catch (error) {
-        throw new Error(`Ошибка при скачивании или дешифровке: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(`Decryption failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+}
+
+// Timing-safe comparison
+function compareHmac(a: Uint8Array, b: Uint8Array): boolean {
+    if (a.length !== b.length) return false;
+
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+        result |= a[i] ^ b[i];
+    }
+    return result === 0;
 }

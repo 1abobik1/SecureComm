@@ -112,6 +112,13 @@ export default function TypeGetAll() {
         return acc;
     }, {} as Record<string, number>);
 
+    const fileTypes={
+        'video': 'Видео',
+        'text': 'Документы',
+        'unknown': 'Прочие',
+        'photo': 'Фотографии'
+    }
+
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-1 xl:grid-cols-2 gap-6">
@@ -122,7 +129,7 @@ export default function TypeGetAll() {
                 >
                     <div className="flex items-center gap-2 mb-3">
                         <TypeFileIcon type={type} />
-                        <h2 className="text-lg font-jetbrains text-blue-600 capitalize">{type}</h2>
+                        <h2 className="text-lg font-jetbrains text-blue-600 capitalize">{fileTypes[type]}</h2>
                     </div>
 
                     {filesByType[type]?.length === 0 ? (
