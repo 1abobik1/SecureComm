@@ -18,6 +18,7 @@ import (
 	"github.com/1abobik1/SecureComm/config"
 	"github.com/1abobik1/SecureComm/internal/domain"
 	"github.com/1abobik1/SecureComm/internal/dto"
+	"github.com/1abobik1/SecureComm/internal/handler/utils"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
@@ -294,7 +295,7 @@ func (m *minioClient) GetOne(ctx context.Context, objectID dto.ObjectID, userID 
 	}
 
 	fileResp.Created_At = createdAtStr
-	fileResp.Name = objInfo.UserMetadata[fileMetaFileName]
+	fileResp.Name = utils.Encode([]byte(objInfo.UserMetadata[fileMetaFileName]))
 	fileResp.ObjID = objectID.ObjID
 	fileResp.Url = minioURL.String()
 	fileResp.MimeType = objInfo.ContentType
@@ -372,7 +373,7 @@ func (m *minioClient) GetAll(ctx context.Context, t string, userID int) ([]dto.F
 			}
 
 			fileResp.Created_At = createdAtStr
-			fileResp.Name = objInfo.UserMetadata[fileMetaFileName]
+			fileResp.Name = utils.Encode([]byte(objInfo.UserMetadata[fileMetaFileName]))
 			fileResp.ObjID = object.Key
 			fileResp.Url = presignedURL.String()
 			fileResp.MimeType = objInfo.ContentType
