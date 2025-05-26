@@ -117,7 +117,7 @@ openssl rsa -pubout -in private_key.pem -out public_key.pem
 ## 4) Если нужно сгенерировать документацию, находясь в папке с _service в конце найдите MakeFile и сгенерируйте по написанной команде в MakeFile, пример ``` make <gen-docs-exmaple>``` 
 ### Документацию ищите в папках с _service в окончании, папка docs
 # Запуск телеграм-бота:
-## 1) Перейти в папку client/python
+## 1) Перейти в папку clients/python
 ## 2) Выполнить команду, которая установит все библиотеки необходимые для запуска бота
 ```bash
 pip install -r requirements.txt
