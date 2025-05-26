@@ -1,7 +1,13 @@
 import base64
+import hashlib
+import hmac
 import os
 import requests
 import time
+from datetime import datetime, timezone
+
+
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -155,27 +161,24 @@ def derive_keys(ks):
     return k_enc, k_mac
 
 
-# Шифрует файл в формате timestamp||nonce||IV||ciphertext||tag
 def encrypt_file(file_path, k_enc_b64, k_mac_b64):
     # Декодируем ключи из Base64
     k_enc = base64.b64decode(k_enc_b64)
     k_mac = base64.b64decode(k_mac_b64)
 
-    # Читаем файл
+    # Читаем файл как бинарные данные
     with open(file_path, "rb") as f:
         plaintext = f.read()
 
-    # Добавляем timestamp и nonce
-    timestamp = int(time.time() * 1000).to_bytes(8, byteorder='big')
-    nonce = os.urandom(16)
-    blob = timestamp + nonce + plaintext
-
     # Паддинг
     padder = PKCS7(128).padder()
-    padded = padder.update(blob) + padder.finalize()
+    padded = padder.update(plaintext) + padder.finalize()
+
+    # Генерируем nonce и iv
+    nonce = os.urandom(16)
+    iv = os.urandom(16)
 
     # Шифрование AES-CBC
-    iv = os.urandom(16)
     cipher = Cipher(algorithms.AES(k_enc), modes.CBC(iv))
     encryptor = cipher.encryptor()
     ciphertext = encryptor.update(padded) + encryptor.finalize()
@@ -186,9 +189,65 @@ def encrypt_file(file_path, k_enc_b64, k_mac_b64):
     h.update(ciphertext)
     tag = h.finalize()
 
-    # Собираем пакет
-    pkg = timestamp + nonce + iv + ciphertext + tag
+    # Собираем пакет: nonce || iv || ciphertext || tag
+    pkg = nonce + iv + ciphertext + tag
     return pkg
+
+
+def decrypt_file(encrypted_data, k_enc_b64, k_mac_b64):
+    """
+    Расшифровывает данные, используя ключи k_enc и k_mac, в формате:
+    nonce (16 байт) || IV (16 байт) || ciphertext (N*16 байт) || tag (32 байта)
+
+    :param encrypted_data: байтовые данные (зашифрованный файл)
+    :param k_enc_b64: ключ шифрования (в Base64)
+    :param k_mac_b64: ключ для HMAC (в Base64)
+    :return: расшифрованные данные или None в случае ошибки
+    """
+    try:
+        # Декодируем ключи из Base64
+        k_enc = base64.b64decode(k_enc_b64)
+        k_mac = base64.b64decode(k_mac_b64)
+
+        # Проверяем минимальную длину данных
+        if len(encrypted_data) < 16 + 16 + 16 + 32:  # nonce + iv + 1 блок + tag
+            print("Ошибка: слишком короткий зашифрованный blob")
+            return None
+
+        # Извлекаем части
+        nonce_bytes = encrypted_data[:16]  # Пропускаем nonce
+        iv = encrypted_data[16:32]
+        ciphertext = encrypted_data[32:-32]
+        tag = encrypted_data[-32:]
+
+        # Проверяем HMAC
+        computed_hmac = hmac.new(k_mac, iv + ciphertext, hashlib.sha256).digest()
+        if not hmac.compare_digest(computed_hmac, tag):
+            print("Ошибка: HMAC не совпадает, данные повреждены.")
+            return None
+
+        # Проверяем, что длина ciphertext кратна размеру блока AES
+        if len(ciphertext) % 16 != 0:
+            print(f"Ошибка: длина ciphertext не кратна 16: {len(ciphertext)}")
+            return None
+
+        # Инициализируем AES-CBC
+        cipher = Cipher(algorithms.AES(k_enc), modes.CBC(iv), backend=default_backend())
+        decryptor = cipher.decryptor()
+
+        # Расшифровываем весь ciphertext
+        plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+
+        # Снимаем PKCS#7 padding
+        unpadder = PKCS7(128).unpadder()
+        unpadded_data = unpadder.update(plaintext) + unpadder.finalize()
+
+        return unpadded_data
+
+    except Exception as e:
+        print(f"Ошибка расшифровки: {e}")
+        return None
+
 
 
 # Выполняет тест сессии, отправляет зашифрованное сообщение
