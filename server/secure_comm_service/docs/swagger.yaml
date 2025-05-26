@@ -346,7 +346,7 @@ paths:
   /files/one/encrypted:
     post:
       consumes:
-      - '*/*'
+      - application/octet-stream
       description: Токен авторизации + зашифрованный поток в body + метаданные в заголовках
       parameters:
       - description: Bearer {token}
@@ -369,6 +369,14 @@ paths:
         name: X-File-Category
         required: true
         type: string
+      - description: Зашифрованный бинарный поток (application/octet-stream)
+        in: body
+        name: file
+        required: true
+        schema:
+          items:
+            type: integer
+          type: array
       produces:
       - application/json
       responses:
@@ -396,7 +404,7 @@ paths:
             type: object
       security:
       - bearerAuth: []
-      summary: Загрузка зашифрованного файла “на лету”
+      summary: Загрузка зашифрованного файла в MinIO(объектное хранилище) “на лету”
       tags:
       - Files
   /handshake/finalize:
@@ -609,7 +617,8 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Инициализация бесплатного плана (10 GiB) пользователя
+      summary: Инициализация бесплатного плана(10гб) пользователя. Вызывается как
+        внешнее апи, при регистрации(/user/signup)
       tags:
       - Quota
   /user/{id}/usage:

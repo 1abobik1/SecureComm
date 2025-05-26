@@ -91,14 +91,15 @@ paths:
       description: |-
         Логин по email и паролю.
         В зависимости от поля `platform` в запросе возвращаются разные данные:
-        • для `platform="tg-bot"`:
-        – `access_token`
-        – `refresh_token`
-        – `k_enc` (Base64)
-        – `k_mac` (Base64)
-        • для `platform="web"`:
-        – `access_token`
-        – `ks` (JSON-объект с полями `k_enc_iv`, `k_enc_data`, `k_mac_iv`, `k_mac_data`)
+        Для platform="tg-bot":
+        access_token
+        refresh_token
+        k_enc(Base64)
+        k_mac(Base64)
+
+        Для platform="web":
+        access_token
+        ks(JSON-объект с полями `k_enc_iv`, `k_enc_data`, `k_mac_iv`, `k_mac_data`)
       parameters:
       - description: Email, Password и Platform (web или tg-bot)
         in: body

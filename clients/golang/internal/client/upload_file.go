@@ -10,7 +10,6 @@ import (
 	"example_client/internal/crypto_utils"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"net/http"
 	"os"
@@ -18,9 +17,9 @@ import (
 	"time"
 )
 
-const mb100 = 104857600 
+const mb100 = 104857600
 
-// использовать для нагруженных тестов. Здесь один чанк=100мб, не считая nonce + tag 
+// использовать для нагруженных тестов. Здесь один чанк=100мб, не считая nonce + tag
 func StreamingUploadEncryptedFile(filePath, cloudURL, accessToken, category string, kEnc, kMac []byte) error {
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -82,6 +81,7 @@ func StreamingUploadEncryptedFile(filePath, cloudURL, accessToken, category stri
 	req.Header.Set("X-File-Category", category)
 	req.Header.Set("X-Orig-Filename", filepath.Base(filePath))
 	req.Header.Set("X-Orig-Mime", "audio/x-psf")
+	//mime.TypeByExtension(filepath.Ext(filePath))
 	req.Header.Set("Content-Type", "application/octet-stream")
 	// Content-Length мы не знаем заранее — пусть будет chunked
 
@@ -91,7 +91,7 @@ func StreamingUploadEncryptedFile(filePath, cloudURL, accessToken, category stri
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("upload failed %d: %s", resp.StatusCode, body)
 	}
 	return nil
@@ -106,7 +106,7 @@ func NotStreamingUploadEncryptedFile(filePath, cloudURL, accessToken, category s
 	}
 	defer f.Close()
 
-	content, err := ioutil.ReadAll(f)
+	content, err := io.ReadAll(f)
 	if err != nil {
 		return nil, fmt.Errorf("read file: %w", err)
 	}
@@ -132,7 +132,7 @@ func NotStreamingUploadEncryptedFile(filePath, cloudURL, accessToken, category s
 	}
 	defer res.Body.Close()
 
-	body, _ := ioutil.ReadAll(res.Body)
+	body, _ := io.ReadAll(res.Body)
 	if res.StatusCode != http.StatusOK {
 		return body, fmt.Errorf("cloud API returned %d", res.StatusCode)
 	}

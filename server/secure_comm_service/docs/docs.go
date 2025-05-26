@@ -313,7 +313,7 @@ const docTemplate = `{
                 ],
                 "description": "Токен авторизации + зашифрованный поток в body + метаданные в заголовках",
                 "consumes": [
-                    "*/*"
+                    "application/octet-stream"
                 ],
                 "produces": [
                     "application/json"
@@ -321,7 +321,7 @@ const docTemplate = `{
                 "tags": [
                     "Files"
                 ],
-                "summary": "Загрузка зашифрованного файла “на лету”",
+                "summary": "Загрузка зашифрованного файла в MinIO(объектное хранилище) “на лету”",
                 "parameters": [
                     {
                         "type": "string",
@@ -350,6 +350,18 @@ const docTemplate = `{
                         "name": "X-File-Category",
                         "in": "header",
                         "required": true
+                    },
+                    {
+                        "description": "Зашифрованный бинарный поток (application/octet-stream)",
+                        "name": "file",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
                     }
                 ],
                 "responses": {
@@ -595,7 +607,7 @@ const docTemplate = `{
                 "tags": [
                     "Quota"
                 ],
-                "summary": "Инициализация бесплатного плана (10 GiB) пользователя",
+                "summary": "Инициализация бесплатного плана(10гб) пользователя. Вызывается как внешнее апи, при регистрации(/user/signup)",
                 "parameters": [
                     {
                         "type": "string",

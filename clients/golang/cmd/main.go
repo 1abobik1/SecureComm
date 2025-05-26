@@ -91,13 +91,13 @@ func main() {
 	//var rBody []byte
 	if *uploadFile != "" {
 		fmt.Printf("Загружаем файл «%s» в зашифрованном виде на %s …\n", *uploadFile, *cloudURL)
-		err := client.StreamingUploadEncryptedFile(*uploadFile, *cloudURL, accessToken, *category, session.KEnc, session.KMac)
+		respBody, err := client.NotStreamingUploadEncryptedFile(*uploadFile, *cloudURL, accessToken, *category, session.KEnc, session.KMac)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "uploadEncryptedFile error: %v\n", err)
 			os.Exit(1)
 		}
-		//rBody = respBody
-		//fmt.Println("Ответ от cloud-API:\n", string(respBody))
+		rBody = respBody
+		fmt.Println("Ответ от cloud-API:\n", string(respBody))
 	}
 
 	// var fileResp dto.FileResponse

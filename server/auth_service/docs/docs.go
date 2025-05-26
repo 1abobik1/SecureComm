@@ -67,7 +67,7 @@ const docTemplate = `{
         },
         "/user/login": {
             "post": {
-                "description": "Логин по email и паролю.\nВ зависимости от поля ` + "`" + `platform` + "`" + ` в запросе возвращаются разные данные:\n• для ` + "`" + `platform=\"tg-bot\"` + "`" + `:\n– ` + "`" + `access_token` + "`" + `\n– ` + "`" + `refresh_token` + "`" + `\n– ` + "`" + `k_enc` + "`" + ` (Base64)\n– ` + "`" + `k_mac` + "`" + ` (Base64)\n• для ` + "`" + `platform=\"web\"` + "`" + `:\n– ` + "`" + `access_token` + "`" + `\n– ` + "`" + `ks` + "`" + ` (JSON-объект с полями ` + "`" + `k_enc_iv` + "`" + `, ` + "`" + `k_enc_data` + "`" + `, ` + "`" + `k_mac_iv` + "`" + `, ` + "`" + `k_mac_data` + "`" + `)",
+                "description": "Логин по email и паролю.\nВ зависимости от поля ` + "`" + `platform` + "`" + ` в запросе возвращаются разные данные:\nДля platform=\"tg-bot\":\naccess_token\nrefresh_token\nk_enc(Base64)\nk_mac(Base64)\n\nДля platform=\"web\":\naccess_token\nks(JSON-объект с полями ` + "`" + `k_enc_iv` + "`" + `, ` + "`" + `k_enc_data` + "`" + `, ` + "`" + `k_mac_iv` + "`" + `, ` + "`" + `k_mac_data` + "`" + `)",
                 "consumes": [
                     "application/json"
                 ],
