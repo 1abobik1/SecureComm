@@ -1,16 +1,14 @@
-
-
 import clsx from 'clsx';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import {usePathname} from 'next/navigation';
 import TypeFileIcon from './TypeFileIcon';
 
 const links = [
-  {name: 'Home',href: '/cloud/home',icontype: 'home' ,},
-  {name: 'Videos',href: '/cloud/videos',icontype: 'video' ,},
-  {name: 'Photos',href: '/cloud/photos',icontype: 'photo' ,},
-  {name: 'Docs',href: '/cloud/docs',icontype: 'text' ,},
-  {name: 'Others',href: '/cloud/unknown',icontype: 'unknown' ,},
+  {name: 'Главная',href: '/cloud/home',icontype: 'home' ,},
+  {name: 'Видео',href: '/cloud/videos',icontype: 'video' ,},
+  {name: 'Фотографии',href: '/cloud/photos',icontype: 'photo' ,},
+  {name: 'Документы',href: '/cloud/docs',icontype: 'text' ,},
+  {name: 'Прочие',href: '/cloud/unknown',icontype: 'unknown' ,},
 ];
 
 export default function NavLinks() {

@@ -5,14 +5,14 @@ import Store from "@/app/api/store/store"
 import {observer} from 'mobx-react-lite'
 import {Context} from '@/app/api/store/context';
 
-function MyApp({ Component, pageProps }: AppProps) {
+function MyApp({Component, pageProps}: AppProps) {
     const store = new Store();
 
     return (
-        <Context.Provider value={ store }>
-            <Component {...pageProps} />
+        <Context.Provider value={store}>
+                <Component {...pageProps} />
         </Context.Provider>
-    )
+)
 }
 
 export default observer(MyApp);
