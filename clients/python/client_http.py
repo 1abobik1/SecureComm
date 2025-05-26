@@ -4,9 +4,6 @@ import hmac
 import os
 import requests
 import time
-from datetime import datetime, timezone
-
-
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding
 from cryptography.hazmat.primitives import serialization, hashes
@@ -14,8 +11,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.hmac import HMAC
 from cryptography.hazmat.primitives.padding import PKCS7
 
-
-# Генерирует пару RSA и ECDSA ключей для клиента
+# Генерирует пару ключей RSA и ECDSA
 def generate_keys():
     rsa_private_key = rsa.generate_private_key(public_exponent=65537, key_size=3072)
     rsa_public_key = rsa_private_key.public_key()
@@ -23,8 +19,7 @@ def generate_keys():
     ecdsa_public_key = ecdsa_private_key.public_key()
     return rsa_private_key, rsa_public_key, ecdsa_private_key, ecdsa_public_key
 
-
-# Сериализует ключ в формат DER (или PEM для приватных) и кодирует в base64 для публичных
+# Сериализует ключ в формат DER (или PEM для приватных) и кодирует в base64
 def serialize_key_to_der(key, is_private=False):
     if is_private:
         pem = key.private_bytes(
@@ -40,29 +35,24 @@ def serialize_key_to_der(key, is_private=False):
         )
         return base64.b64encode(der).decode('utf-8')
 
-
-# Создает ECDSA подпись для данных и возвращает её в base64
+# Создает ECDSA подпись для данных в формате base64
 def sign_ecdsa(ecdsa_private_key, data):
     signature = ecdsa_private_key.sign(data, ec.ECDSA(hashes.SHA256()))
     return base64.b64encode(signature).decode('utf-8')
 
-
-# Проверяет ECDSA подпись, возвращает True если подпись верна
+# Проверяет ECDSA подпись, возвращает True, если подпись верна
 def verify_ecdsa(ecdsa_public_key, data, signature_b64):
     signature = base64.b64decode(signature_b64)
     try:
         ecdsa_public_key.verify(signature, data, ec.ECDSA(hashes.SHA256()))
         return True
-    except Exception as e:
-        print(f"Verification failed: {e}")
+    except Exception:
         return False
 
-
-# Генерирует случайный nonce заданного размера, возвращает в base64 и сырые байты
+# Генерирует случайный nonce, возвращает в base64 и сырые байты
 def generate_nonce(size):
     buf = os.urandom(size)
     return base64.b64encode(buf).decode('utf-8'), buf
-
 
 # Выполняет начальный этап обмена ключами с сервером
 def perform_handshake(init_url, access_token=None):
@@ -78,8 +68,7 @@ def perform_handshake(init_url, access_token=None):
     rsa_pub_der_b64 = base64.b64encode(rsa_pub_der).decode()
     ecdsa_pub_der_b64 = base64.b64encode(ecdsa_pub_der).decode()
     nonce1_b64, nonce1 = generate_nonce(8)
-    data_to_sign = base64.b64decode(rsa_pub_der_b64) + base64.b64decode(ecdsa_pub_der_b64) + base64.b64decode(
-        nonce1_b64)
+    data_to_sign = base64.b64decode(rsa_pub_der_b64) + base64.b64decode(ecdsa_pub_der_b64) + base64.b64decode(nonce1_b64)
     signature1 = sign_ecdsa(ecdsa_priv, data_to_sign)
     payload = {
         "rsa_pub_client": rsa_pub_der_b64,
@@ -91,7 +80,6 @@ def perform_handshake(init_url, access_token=None):
     response = requests.post(init_url, json=payload, headers=headers)
     response.raise_for_status()
     server_data = response.json()
-
     client_id = server_data["client_id"]
     rsa_pub_server_der = base64.b64decode(server_data["rsa_pub_server"])
     ecdsa_pub_server_der = base64.b64decode(server_data["ecdsa_pub_server"])
@@ -113,8 +101,7 @@ def perform_handshake(init_url, access_token=None):
         "nonce1_b64": nonce1_b64
     }
 
-
-# Выполняет финальный этап обмена ключами, устанавливает сессионный ключ
+# Завершает обмен ключами, устанавливает сессионный ключ
 def perform_finalize(fin_url, handshake_data, access_token=None, nonce3=None):
     _, ks = generate_nonce(32)
     nonce3_b64, nonce3 = generate_nonce(8) if nonce3 is None else (base64.b64encode(nonce3).decode('utf-8'), nonce3)
@@ -147,113 +134,165 @@ def perform_finalize(fin_url, handshake_data, access_token=None, nonce3=None):
         raise Exception("Ошибка проверки подписи сервера (signature4)")
     return ks
 
-
-# Деривирует ключи шифрования (K_enc) и MAC (K_mac) из сессионного ключа
+# Деривирует ключи шифрования и HMAC из сессионного ключа
 def derive_keys(ks):
     h_enc = HMAC(ks, hashes.SHA256())
     h_enc.update(b"enc")
     k_enc = h_enc.finalize()
-
     h_mac = HMAC(ks, hashes.SHA256())
     h_mac.update(b"mac")
     k_mac = h_mac.finalize()
-
     return k_enc, k_mac
 
-
+# Шифрует файл с использованием AES-CBC и HMAC
 def encrypt_file(file_path, k_enc_b64, k_mac_b64):
-    # Декодируем ключи из Base64
     k_enc = base64.b64decode(k_enc_b64)
     k_mac = base64.b64decode(k_mac_b64)
-
-    # Читаем файл как бинарные данные
     with open(file_path, "rb") as f:
         plaintext = f.read()
-
-    # Паддинг
     padder = PKCS7(128).padder()
     padded = padder.update(plaintext) + padder.finalize()
-
-    # Генерируем nonce и iv
     nonce = os.urandom(16)
     iv = os.urandom(16)
-
-    # Шифрование AES-CBC
     cipher = Cipher(algorithms.AES(k_enc), modes.CBC(iv))
     encryptor = cipher.encryptor()
     ciphertext = encryptor.update(padded) + encryptor.finalize()
-
-    # HMAC
     h = HMAC(k_mac, hashes.SHA256())
     h.update(iv)
     h.update(ciphertext)
     tag = h.finalize()
-
-    # Собираем пакет: nonce || iv || ciphertext || tag
     pkg = nonce + iv + ciphertext + tag
     return pkg
 
-
+# Расшифровывает файл, проверяет HMAC и снимает padding
 def decrypt_file(encrypted_data, k_enc_b64, k_mac_b64):
-    """
-    Расшифровывает данные, используя ключи k_enc и k_mac, в формате:
-    nonce (16 байт) || IV (16 байт) || ciphertext (N*16 байт) || tag (32 байта)
-
-    :param encrypted_data: байтовые данные (зашифрованный файл)
-    :param k_enc_b64: ключ шифрования (в Base64)
-    :param k_mac_b64: ключ для HMAC (в Base64)
-    :return: расшифрованные данные или None в случае ошибки
-    """
     try:
-        # Декодируем ключи из Base64
         k_enc = base64.b64decode(k_enc_b64)
         k_mac = base64.b64decode(k_mac_b64)
-
-        # Проверяем минимальную длину данных
-        if len(encrypted_data) < 16 + 16 + 16 + 32:  # nonce + iv + 1 блок + tag
-            print("Ошибка: слишком короткий зашифрованный blob")
+        if len(encrypted_data) < 16 + 16 + 16 + 32:
             return None
-
-        # Извлекаем части
-        nonce_bytes = encrypted_data[:16]  # Пропускаем nonce
+        nonce_bytes = encrypted_data[:16]
         iv = encrypted_data[16:32]
         ciphertext = encrypted_data[32:-32]
         tag = encrypted_data[-32:]
-
-        # Проверяем HMAC
         computed_hmac = hmac.new(k_mac, iv + ciphertext, hashlib.sha256).digest()
         if not hmac.compare_digest(computed_hmac, tag):
-            print("Ошибка: HMAC не совпадает, данные повреждены.")
             return None
-
-        # Проверяем, что длина ciphertext кратна размеру блока AES
         if len(ciphertext) % 16 != 0:
-            print(f"Ошибка: длина ciphertext не кратна 16: {len(ciphertext)}")
             return None
-
-        # Инициализируем AES-CBC
         cipher = Cipher(algorithms.AES(k_enc), modes.CBC(iv), backend=default_backend())
         decryptor = cipher.decryptor()
-
-        # Расшифровываем весь ciphertext
         plaintext = decryptor.update(ciphertext) + decryptor.finalize()
-
-        # Снимаем PKCS#7 padding
         unpadder = PKCS7(128).unpadder()
         unpadded_data = unpadder.update(plaintext) + unpadder.finalize()
-
         return unpadded_data
-
-    except Exception as e:
-        print(f"Ошибка расшифровки: {e}")
+    except Exception:
         return None
 
 
+# Потоковая загрузка зашифрованного файла
+def stream_upload_encrypted_file(file_path, cloud_url, access_token, category, k_enc, k_mac):
+    """
+    Потоково загружает зашифрованный файл на сервер, используя AES-CBC и HMAC-SHA256.
 
-# Выполняет тест сессии, отправляет зашифрованное сообщение
+    Args:
+        file_path (str): Путь к файлу для загрузки.
+        cloud_url (str): URL эндпоинта для загрузки (e.g., http://localhost:8080/files/one/encrypted).
+        access_token (str): Bearer-токен для авторизации.
+        category (str): Категория файла (photo, video, text, unknown).
+        k_enc (bytes): Ключ шифрования AES (32 байта).
+        k_mac (bytes): Ключ HMAC-SHA256 (32 байта).
+
+    Returns:
+        dict: JSON-ответ сервера с метаданными и presigned URL.
+
+    Raises:
+        Exception: Если загрузка не удалась или сервер вернул ошибку.
+    """
+    # Проверяем существование файла
+    if not os.path.exists(file_path):
+        raise Exception(f"Файл {file_path} не существует")
+
+    # Инициализируем AES-CBC и HMAC
+    iv = os.urandom(16)
+    cipher = Cipher(algorithms.AES(k_enc), modes.CBC(iv))
+    encryptor = cipher.encryptor()
+    h = HMAC(k_mac, hashes.SHA256())
+    h.update(iv)
+
+    # Генерируем nonce
+    nonce = os.urandom(16)
+
+    # Определяем размер чанка (100 МБ, как в Go)
+    chunk_size = 100 * 1024 * 1024  # 100 MB
+
+    def generate_chunks():
+        """Генератор для потокового чтения, шифрования и HMAC."""
+        with open(file_path, "rb") as f:
+            # Отправляем nonce и IV первыми
+            yield nonce
+            yield iv
+
+            # Читаем и шифруем файл по чанкам
+            padder = PKCS7(128).padder()
+            while True:
+                chunk = f.read(chunk_size)
+                if not chunk:
+                    # Конец файла: добавляем padding
+                    padded = padder.finalize()
+                    if padded:
+                        ciphertext = encryptor.update(padded)
+                        h.update(ciphertext)
+                        yield ciphertext
+                    break
+
+                # Добавляем данные в padder
+                padded_chunk = padder.update(chunk)
+                if padded_chunk:
+                    ciphertext = encryptor.update(padded_chunk)
+                    h.update(ciphertext)
+                    yield ciphertext
+
+                if len(chunk) < chunk_size:
+                    # Конец файла: добавляем padding
+                    padded = padder.finalize()
+                    if padded:
+                        ciphertext = encryptor.update(padded)
+                        h.update(ciphertext)
+                        yield ciphertext
+                    break
+
+            # Завершаем шифрование и отправляем HMAC tag
+            ciphertext = encryptor.finalize()
+            if ciphertext:
+                h.update(ciphertext)
+                yield ciphertext
+            yield h.finalize()
+
+    # Формируем запрос
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "X-File-Category": category,
+        "X-Orig-Filename": os.path.basename(file_path),
+        "X-Orig-Mime": "audio/x-psf",  # Как в Go примере
+        "Content-Type": "application/octet-stream"
+    }
+
+    # Отправляем потоковый запрос
+    try:
+        response = requests.post(cloud_url, headers=headers, data=generate_chunks(), timeout=60)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.HTTPError as e:
+        error_body = response.text if response else "No response body"
+        raise Exception(f"Ошибка загрузки {response.status_code}: {error_body}") from e
+    except Exception as e:
+        raise Exception(f"Ошибка при загрузке: {e}")
+
+
+# Тестирует сессию, отправляя зашифрованное сообщение
 def perform_session_test(test_url, session, access_token=None, plaintext="Hello, Secure World!"):
-    start = time.time()
-    ts = int(time.time() * 1000)  # Timestamp в миллисекундах
+    ts = int(time.time() * 1000)
     timestamp = ts.to_bytes(8, byteorder='big')
     nonce = os.urandom(16)
     if isinstance(plaintext, str):
@@ -286,26 +325,15 @@ def perform_session_test(test_url, session, access_token=None, plaintext="Hello,
     response = requests.post(test_url, json=payload, headers=headers, timeout=30)
     response.raise_for_status()
     response_data = response.json()
-    duration = (time.time() - start) * 1000
-    print(
-        f"Время шифрования и отправки (/session/test, {len(plaintext_bytes) / 1024 / 1024:.2f} МБ): {duration:.2f} мс")
-    print("Тест сессии успешно завершён!")
-    print(f"Сервер расшифровал: {len(response_data['plaintext'])} символов")
-    if len(response_data['plaintext']) != len(plaintext_bytes):
-        print(f"Предупреждение: Сервер вернул {len(response_data['plaintext'])} байт, ожидалось {len(plaintext_bytes)}")
+    return response_data
 
-
-# Основной процесс
+# Запускает процесс обмена ключами и тестирования сессии
 def main():
     init_url = "http://localhost:8080/handshake/init"
     fin_url = "http://localhost:8080/handshake/finalize"
     test_url = "http://localhost:8080/session/test"
-    start_total = time.time()
     handshake_data = perform_handshake(init_url)
-    print(f"Обмен ключами успешно завершен, идентификатор клиента: {handshake_data['client_id']}")
     ks = perform_finalize(fin_url, handshake_data)
-    print(f"Время финального рукопожатия: {(time.time() - start_total) * 1000:.2f} мс")
-    print("Финализация успешно завершена, сессионный ключ установлен")
     K_enc, K_mac = derive_keys(ks)
     session = {
         "client_id": handshake_data["client_id"],
@@ -313,12 +341,7 @@ def main():
         "k_mac": K_mac,
         "ecdsa_priv": handshake_data["ecdsa_priv"]
     }
-    print(
-        f"Ключи сгенерированы: K_enc={base64.b64encode(K_enc).decode('utf-8')[:10]}..., K_mac={base64.b64encode(K_mac).decode('utf-8')[:10]}...")
     perform_session_test(test_url, session)
-    total_time = (time.time() - start_total) * 1000
-    print(f"Общее время выполнения: {total_time:.2f} мс")
-
 
 if __name__ == "__main__":
     main()
