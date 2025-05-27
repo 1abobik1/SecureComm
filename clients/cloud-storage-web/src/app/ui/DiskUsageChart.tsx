@@ -3,6 +3,7 @@ import {Pie} from "react-chartjs-2";
 import {ArcElement, CategoryScale, Chart as ChartJS, Legend, Tooltip} from 'chart.js';
 import {useEffect, useState} from 'react';
 import {jwtDecode} from 'jwt-decode';
+import {useUsageRefresh} from "@/app/components/UsageRefreshContext";
 
 ChartJS.register(ArcElement, CategoryScale, Tooltip, Legend);
 
@@ -38,6 +39,7 @@ const toBytes = (gb: number, mb: number, kb: number): number => {
 const DiskUsageChart: React.FC<DiskUsageChartProps> = ({ fileCounts }) => {
   const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const { refreshKey } = useUsageRefresh();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -64,7 +66,7 @@ const DiskUsageChart: React.FC<DiskUsageChartProps> = ({ fileCounts }) => {
         .finally(() => {
           setLoading(false);
         });
-  }, []);
+  }, [refreshKey]);
 
   if (loading || !usage) return <div className="text-gray-600">Загрузка...</div>;
 

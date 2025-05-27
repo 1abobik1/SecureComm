@@ -6,6 +6,7 @@ import FileCard from "@/app/ui/FileCard";
 import TypeFileIcon from "../ui/TypeFileIcon";
 import FileUploader from "./FileUploader";
 import {Loader2} from 'lucide-react';
+import {useUsageRefresh} from "@/app/components/UsageRefreshContext";
 
 export default function TypeBlock({ type }) {
   const [file, setFile] = useState<FileData[]>([]);
@@ -15,6 +16,7 @@ export default function TypeBlock({ type }) {
   const [nameSortAsc, setNameSortAsc] = useState<boolean>(true);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); // сортировка по возрастанию или убыванию
   const [filteredFiles, setFilteredFiles] = useState<FileData[]>([]);
+  const { refreshKey } = useUsageRefresh();
 
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function TypeBlock({ type }) {
     };
 
     fetchData();
-  }, [type]);
+  }, [type, refreshKey]);
 
   // Функция сортировки по дате
   const sortFiles = (order: 'asc' | 'desc') => {
@@ -167,5 +169,5 @@ export default function TypeBlock({ type }) {
         )}
       </>
   );
-  
+
 };

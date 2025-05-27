@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import TypeFileIcon from '../ui/TypeFileIcon';
 import FileCard from '../ui/FileCard';
 import {Loader2} from 'lucide-react';
+import {useUsageRefresh} from "@/app/components/UsageRefreshContext";
 
 
 export default function TypeGetAll() {
@@ -13,6 +14,7 @@ export default function TypeGetAll() {
     const [isLoading, setIsLoading] = useState(true);
     const [isError, setIsError] = useState(false);
     const types = ['text', 'photo', 'video', 'unknown'];
+    const { refreshKey } = useUsageRefresh();
 
     const DiskUsageChart = dynamic(() => import('../ui/DiskUsageChart'), {
         ssr: false,
@@ -77,7 +79,7 @@ export default function TypeGetAll() {
         };
 
         fetchAllTypes();
-    }, []);
+    }, [refreshKey]);
 
     // Обработчик удаления файла
     const handleDelete = (obj_id: string) => {

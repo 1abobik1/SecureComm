@@ -39,3 +39,4 @@ venv/
 #js
 clients/javascript/node_modules
 clients/javascript/src/keys
+clients/javascript

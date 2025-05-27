@@ -27,7 +27,7 @@ export async function getKs(): Promise<[CryptoKey, CryptoKey] | null> {
         const rawKey1 = base64ToArrayBuffer(key1);
         const rawKey2 = base64ToArrayBuffer(key2);
 
-        // Импортируем ключи (укажите ваш алгоритм!)
+        // Импортируем ключи
         const cryptoKey1 = await crypto.subtle.importKey(
             'raw',
             rawKey1,

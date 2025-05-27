@@ -1,4 +1,3 @@
-// app/api/store/context.ts
 import {createContext} from 'react';
 import Store from "@/app/api/store/store";
 
