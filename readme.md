@@ -144,5 +144,4 @@ npm run dev
 
 # Список тестов:
 ### Модульные тесты безопасности (security_test.py)
-###Запуск  тестов производится с помощью команды (python security_test.py) из директории где лежит этот файл.(brute_force,
-replay_attack_test, timing_attack)
+### Запуск  тестов производится с помощью команды (python security_test.py) из директории где лежит этот файл.(brute_force, replay_attack_test, timing_attack)
