@@ -148,9 +148,10 @@ func main() {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	hsLimiter := middleware.NewIPRateLimiter(cfg.HSLimiter.RPC, cfg.HSLimiter.Burst, cfg.HSLimiter.Period)         // middleware limiter для /handshake
+	hsAttemptLimiter := middleware.RegistrationAttemptLimiter()
 	sessionLimiter := middleware.NewIPRateLimiter(cfg.SesLimiter.RPC, cfg.SesLimiter.Burst, cfg.SesLimiter.Period) // middleware limiter для остальных апи
 	// регистрация всех маршрутов
-	routes.RegisterRoutes(r, cfg, quotaHandler, minioHandler, hsHandler, webClient, tgClient, hsLimiter, sessionLimiter)
+	routes.RegisterRoutes(r, cfg, quotaHandler, minioHandler, hsHandler, webClient, tgClient, hsLimiter, sessionLimiter, hsAttemptLimiter)
 
 	logrus.Infof("Starting server on %s", cfg.HTTPServ.ServerAddr)
 	if err := r.Run(cfg.HTTPServ.ServerAddr); err != nil {

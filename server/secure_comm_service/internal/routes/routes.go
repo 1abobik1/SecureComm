@@ -11,7 +11,7 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handler.QuotaHandler, minioHandler *cloud_handler.MinioHandler, hsHandler *handshake_handler.HSHandler,
-	webClient *api.WEBClientKeysAPI, tgClient *api.TGClientKeysAPI, hsLimiterMiddleware gin.HandlerFunc, sessionLimiterMiddleware gin.HandlerFunc,
+	webClient *api.WEBClientKeysAPI, tgClient *api.TGClientKeysAPI, hsLimiterMiddleware gin.HandlerFunc, sessionLimiterMiddleware gin.HandlerFunc, hsAttemptLimiter gin.HandlerFunc,
 ) {
 
 	authGroup := r.Group("/")
@@ -20,8 +20,8 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, quotaHandler *quota_handl
 	{
 		hsGroup := authGroup.Group("/handshake")
 		{
-			hsGroup.POST("/init", hsLimiterMiddleware, hsHandler.Init)
-			hsGroup.POST("/finalize", hsLimiterMiddleware, hsHandler.Finalize)
+			hsGroup.POST("/init", hsAttemptLimiter, hsLimiterMiddleware, hsHandler.Init)
+			hsGroup.POST("/finalize", hsAttemptLimiter, hsLimiterMiddleware, hsHandler.Finalize)
 		}
 
 		sGroup := authGroup.Group("/session")

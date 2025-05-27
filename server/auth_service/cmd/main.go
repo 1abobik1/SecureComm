@@ -84,7 +84,7 @@ func main() {
 	}))
 
 	r.POST("/user/signup", userHandler.SignUp)
-	r.POST("/user/login", middleware.NewIPRateLimiter(cfg.LoginLimiter.RPC, cfg.LoginLimiter.Burst, cfg.LoginLimiter.Period), userHandler.Login)
+	r.POST("/user/login", middleware.RegistrationAttemptLimiter() ,middleware.NewIPRateLimiter(cfg.LoginLimiter.RPC, cfg.LoginLimiter.Burst, cfg.LoginLimiter.Period), userHandler.Login)
 	r.POST("/user/logout", userHandler.Logout)
 
 	r.POST("/token/update", tokenHandler.TokenUpdate)

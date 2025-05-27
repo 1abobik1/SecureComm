@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/1abobik1/AuthService/internal/dto"
+	"github.com/1abobik1/AuthService/internal/middleware"
 	"github.com/1abobik1/AuthService/internal/storage"
 	"github.com/1abobik1/AuthService/internal/utils"
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,7 @@ func (h *userHandler) SignUp(c *gin.Context) {
 
 	if err := c.BindJSON(&authDTO); err != nil {
 		log.Printf("Error binding JSON: %v location %s\n", err, op)
+		c.Set("failed_registration", true)
 		c.Status(http.StatusBadRequest)
 		return
 	}
@@ -38,12 +40,14 @@ func (h *userHandler) SignUp(c *gin.Context) {
 	validate := validator.New()
 	if err := validate.Struct(authDTO); err != nil {
 		log.Printf("Error: %s, location: %s", ErrValidation, op)
+		c.Set("failed_registration", true)
 		c.JSON(http.StatusBadRequest, gin.H{"error": ErrValidation})
 		return
 	}
 
 	if err := utils.ValidatePlatform(authDTO.Platform); err != nil {
 		log.Printf("Error: %v, location: %s", err, op)
+		c.Set("failed_registration", true)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "the error checking platform. available platforms: web, tg-bot"})
 		return
 	}
@@ -51,13 +55,18 @@ func (h *userHandler) SignUp(c *gin.Context) {
 	accessToken, refreshToken, err := h.userService.Register(c, authDTO.Email, authDTO.Password, authDTO.Platform)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserExists) {
+			c.Set("failed_registration", true)
 			c.JSON(http.StatusConflict, gin.H{"error": "User with this email already exists"})
 			return
 		}
 		log.Printf("Error Internal logic during user registration. Email: %s, Error: %v \n", authDTO.Email, err)
+		c.Set("failed_registration", true)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
+
+	ip := c.ClientIP()
+	middleware.FailedAttemptsCache.Delete("fail_" + ip)
 
 	if authDTO.Platform == "tg-bot" {
 		// ответ тг боту

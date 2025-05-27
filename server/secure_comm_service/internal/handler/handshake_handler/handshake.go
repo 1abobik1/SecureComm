@@ -7,6 +7,7 @@ import (
 
 	"github.com/1abobik1/SecureComm/internal/dto"
 	"github.com/1abobik1/SecureComm/internal/handler/utils"
+	"github.com/1abobik1/SecureComm/internal/middleware"
 	"github.com/1abobik1/SecureComm/internal/service/handshake_service"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -59,12 +60,14 @@ func (h *HSHandler) Init(c *gin.Context) {
 
 	if c.IsAborted() {
 		logrus.Errorf("%s: invalid base64 payload", op)
+		c.Set("failed_registration", true)
 		return
 	}
 
 	clientID, err := utils.GetUserID(c)
 	if err != nil {
 		logrus.Errorf("GetUserID Errors: %v", err)
+		c.Set("failed_registration", true)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "the user's ID was not found in the token."})
 		return
 	}
@@ -76,13 +79,18 @@ func (h *HSHandler) Init(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, handshake_service.ErrReplayDetected) {
 			logrus.Errorf("Service error: %s", err.Error())
+			c.Set("failed_registration", true)
 			c.JSON(http.StatusConflict, dto.ConflictErr{Error: err.Error()})
 			return
 		}
 		logrus.Errorf("Service error: %s", err.Error())
+		c.Set("failed_registration", true)
 		c.JSON(http.StatusUnauthorized, dto.UnauthorizedErr{Error: err.Error()})
 		return
 	}
+
+	ip := c.ClientIP()
+	middleware.FailedAttemptsCache.Delete("fail_" + ip)
 
 	resp := dto.HandshakeInitResp{
 		ClientID:       clientIDStr,
@@ -128,6 +136,7 @@ func (h *HSHandler) Finalize(c *gin.Context) {
 	encrypted, err := utils.Decode(req.Encrypted)
 	if err != nil {
 		logrus.Errorf("Error: %v", err)
+		c.Set("failed_registration", true)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
@@ -135,6 +144,7 @@ func (h *HSHandler) Finalize(c *gin.Context) {
 	sig3, err := utils.Decode(req.Signature3)
 	if err != nil {
 		logrus.Errorf("Error: %v", err)
+		c.Set("failed_registration", true)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
@@ -142,6 +152,7 @@ func (h *HSHandler) Finalize(c *gin.Context) {
 	clientID, err := utils.GetUserID(c)
 	if err != nil {
 		logrus.Errorf("GetUserID Errors: %v", err)
+		c.Set("failed_registration", true)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "the user's ID was not found in the token."})
 		return
 	}
@@ -151,13 +162,18 @@ func (h *HSHandler) Finalize(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, handshake_service.ErrReplayDetected) {
 			logrus.Errorf("Service error: %s", err.Error())
+			c.Set("failed_registration", true)
 			c.JSON(http.StatusConflict, dto.ConflictErr{Error: err.Error()})
 			return
 		}
 		logrus.Errorf("finalize error for client %s: %v", clientIDStr, err)
+		c.Set("failed_registration", true)
 		c.JSON(http.StatusUnauthorized, dto.UnauthorizedErr{Error: err.Error()})
 		return
 	}
+
+	ip := c.ClientIP()
+	middleware.FailedAttemptsCache.Delete("fail_" + ip)
 
 	resp := dto.HandshakeFinalizeResp{
 		Signature4: utils.Encode(sig4),
