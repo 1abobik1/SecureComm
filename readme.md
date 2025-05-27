@@ -143,6 +143,7 @@ npm run dev
 ---
 
 # Список тестов:
+### Все тесты запускать из clients/python
 ### Модульные тесты безопасности (security_test.py)
 ```bash
 python security_test.py
