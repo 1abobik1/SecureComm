@@ -151,7 +151,7 @@ python security_test.py
 ```bash
 locust -f locustfile.py --host=http://localhost:8080
 ```
-### Нагрузочный и функциональный тест для проверки защищенной загрузки файла на сервер test_server.py
+### Нагрузочный и функциональный тест для проверки защищенной загрузки файла на сервер (test_server.py)
 ```bash
 python test_server.py --file-size 100 #100 размер файла
 ```
