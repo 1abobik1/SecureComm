@@ -143,5 +143,16 @@ npm run dev
 ---
 
 # Список тестов:
+### Все тесты запускать из clients/python
 ### Модульные тесты безопасности (security_test.py)
-### Запуск  тестов производится с помощью команды (python security_test.py) из директории где лежит этот файл.(brute_force, replay_attack_test, timing_attack)
+```bash
+python security_test.py
+```
+### Нагрузочное тестирование (locustfile.py)
+```bash
+locust -f locustfile.py --host=http://localhost:8080
+```
+### Нагрузочный и функциональный тест для проверки защищенной загрузки файла на сервер (test_server.py)
+```bash
+python test_server.py --file-size 100 #100 размер файла
+```
