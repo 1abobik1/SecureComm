@@ -140,4 +140,9 @@ npm install
 npm run dev
 ```
 ### 4) Чтобы протестировать сайт, необходимо открыть в браузере страницу http://localhost:3000/
+---
 
+# Список тестов:
+### Модульные тесты безопасности (security_test.py)
+###Запуск  тестов производится с помощью команды (python security_test.py) из директории где лежит этот файл.(brute_force,
+replay_attack_test, timing_attack)
