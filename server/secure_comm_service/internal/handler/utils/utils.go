@@ -68,13 +68,13 @@ func HandleBindError(c *gin.Context, err error) {
 		}
 
 		logrus.WithError(err).Warn(out)
-		c.Set("failed_registration", true)
+		c.Set("failed_handshake", true)
 		c.JSON(http.StatusBadRequest, gin.H{"errors": out})
 		return
 	}
 
 	logrus.WithError(err).Warn("invalid request data")
-	c.Set("failed_registration", true)
+	c.Set("failed_handshake", true)
 	c.JSON(http.StatusBadRequest, dto.BadRequestErr{Error: "invalid request data"})
 }
 
