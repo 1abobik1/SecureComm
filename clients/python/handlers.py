@@ -180,7 +180,7 @@ async def upload_file_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not session or not context.user_data.get("access_token"):
         await update.message.reply_text("Войдите в аккаунт.")
         return ConversationHandler.END
-    await update.message.reply_text("Отправьте файл (до 50 МБ).")
+    await update.message.reply_text("Отправьте файл.")
     return ConversationHandler.END
 
 # Обрабатывает загрузку файла
@@ -570,7 +570,7 @@ async def usage_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = requests.get(f"{CLOUD_BASE_URL}/user/{client_id}/usage", headers=headers)
         response.raise_for_status()
         response_data = response.json()
-        message = f"📊 *Использование для {client_id}:*\n" \
+        message = f"📊 *Текущий тариф:*\n" \
                   f"• Использовано: {response_data['current_used_gb']} GB\n" \
                   f"• План: {response_data['plan_name']}\n" \
                   f"• Лимит: {response_data['storage_limit_gb']} GB"
