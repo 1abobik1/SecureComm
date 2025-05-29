@@ -4,6 +4,7 @@ import sqlite3
 import jwt
 import os
 import requests
+from engineio.async_drivers import aiohttp
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.error import TimedOut
@@ -208,8 +209,8 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             original_file_name = video.file_name or f"video_{update.message.message_id}.mp4"
             file_size = video.file_size
             mime_type = video.mime_type or 'video/mp4'
-        if file_size > 50 * 1024 * 1024:
-            await update.message.reply_text(f"Файл {original_file_name} > 50 МБ. Используйте сайт.")
+        if file_size > 20 * 1024 * 1024:
+            await update.message.reply_text(f"Файл {original_file_name} > 20 МБ. Используйте сайт.")
             return
         file = await (document.get_file() if update.message.document else
                       photo.get_file() if update.message.photo else
@@ -226,7 +227,8 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await update.message.reply_text(f"Таймаут для {safe_file_name}. Попробуйте снова.")
                     return
                 continue
-        encrypted_data = encrypt_file(file_path, session["k_enc"], session["k_mac"])
+        loop = asyncio.get_event_loop()
+        encrypted_data = await loop.run_in_executor(None, encrypt_file, file_path, session["k_enc"], session["k_mac"])
         if not encrypted_data:
             raise Exception("Ошибка шифрования")
         file_category = get_file_category(mime_type)
@@ -239,9 +241,10 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "X-Orig-Mime": mime_type,
             "X-File-Category": file_category
         }
-        response = requests.post(UPLOAD_FILES_URL, headers=headers, data=encrypted_data, timeout=30)
-        response.raise_for_status()
-        response_data = response.json()
+        async with aiohttp.ClientSession() as session:
+            async with session.post(UPLOAD_FILES_URL, headers=headers, data=encrypted_data) as response:
+                response.raise_for_status()
+                response_data = await response.json()
         obj_id = response_data.get("obj_id", "не указан")
         clean_obj_id = obj_id.rstrip('.')
         expected_extension = get_file_extension(mime_type).lstrip('.')
@@ -274,8 +277,8 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         os.remove(file_path)
         await update.message.reply_text(message, parse_mode="HTML")
-    except requests.exceptions.HTTPError as e:
-        error_msg = response.json().get("error", "Ошибка")
+    except aiohttp.ClientResponseError as e:
+        error_msg = (await e.response.json()).get("error", "Ошибка") if e.response else "Ошибка"
         await update.message.reply_text(f"Ошибка: {error_msg}")
     except Exception as e:
         await update.message.reply_text(f"Ошибка: {e}. Попробуйте снова.")
@@ -306,34 +309,37 @@ async def get_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
             access_token = context.user_data["access_token"]
             headers = {"Authorization": f"Bearer {access_token}"}
             params = {"id": file_id, "type": file_category or "unknown"}
-            response = requests.get(GET_FILE_URL, headers=headers, params=params)
-            if response.status_code == 200:
-                file_data = response.json()
-                download_url = file_data.get("url")
-                encoded_name = file_data.get("name", file_id)
-                try:
-                    file_name = base64.b64decode(encoded_name).decode('utf-8')
-                except Exception:
-                    file_name = file_id
-                full_obj_id = file_data.get("obj_id", file_id)
-                file_category = get_file_category(file_data.get("mime_type", "unknown"))
-                if "file_urls" not in context.user_data:
-                    context.user_data["file_urls"] = {}
-                context.user_data["file_urls"][full_obj_id] = {
-                    "full_obj_id": full_obj_id,
-                    "url": download_url,
-                    "name": file_name,
-                    "category": file_category
-                }
-            else:
-                response.raise_for_status()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(GET_FILE_URL, headers=headers, params=params) as response:
+                    if response.status == 200:
+                        file_data = await response.json()
+                        download_url = file_data.get("url")
+                        encoded_name = file_data.get("name", file_id)
+                        try:
+                            file_name = base64.b64decode(encoded_name).decode('utf-8')
+                        except Exception:
+                            file_name = file_id
+                        full_obj_id = file_data.get("obj_id", file_id)
+                        file_category = get_file_category(file_data.get("mime_type", "unknown"))
+                        if "file_urls" not in context.user_data:
+                            context.user_data["file_urls"] = {}
+                        context.user_data["file_urls"][full_obj_id] = {
+                            "full_obj_id": full_obj_id,
+                            "url": download_url,
+                            "name": file_name,
+                            "category": file_category
+                        }
+                    else:
+                        response.raise_for_status()
         if not download_url:
             await update.message.reply_text(f"URL для файла с ID `{file_id}` не найден. Попробуйте загрузить файл снова или используйте 'Получить все файлы'.")
             return ConversationHandler.END
-        file_response = requests.get(download_url, stream=True)
-        file_response.raise_for_status()
-        encrypted_data = b"".join(file_response.iter_content(chunk_size=8192))
-        decrypted_data = decrypt_file(encrypted_data, session["k_enc"], session["k_mac"])
+        async with aiohttp.ClientSession() as session:
+            async with session.get(download_url) as response:
+                response.raise_for_status()
+                encrypted_data = await response.read()
+        loop = asyncio.get_event_loop()
+        decrypted_data = await loop.run_in_executor(None, decrypt_file, encrypted_data, session["k_enc"], session["k_mac"])
         if not decrypted_data:
             raise Exception("Ошибка расшифровки")
         os.makedirs("downloads", exist_ok=True)
@@ -345,8 +351,8 @@ async def get_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_document(document=f, filename=file_name)
         os.remove(file_path)
         await update.message.reply_text(f"Файл `{file_name}` (ID: `{full_obj_id}`) успешно скачан.")
-    except requests.exceptions.HTTPError as e:
-        error_msg = e.response.json().get("error", "Ошибка") if e.response and 'json' in e.response.headers.get('Content-Type', '') else str(e)
+    except aiohttp.ClientResponseError as e:
+        error_msg = (await e.response.json()).get("error", "Ошибка") if e.response else str(e)
         await update.message.reply_text(f"Ошибка: {error_msg}")
     except Exception as e:
         await update.message.reply_text(f"Ошибка: {e}. Попробуйте снова.")
