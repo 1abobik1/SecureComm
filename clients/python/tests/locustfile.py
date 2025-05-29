@@ -4,7 +4,7 @@ import random
 import string
 import os
 import requests
-from client_http import perform_handshake, perform_finalize, derive_keys, perform_session_test
+from ..client_http import perform_handshake, perform_finalize, derive_keys, perform_session_test
 # locust -f locust_test.py --host=http://localhost:8080
 class BaseUser(HttpUser):
     wait_time = between(1, 2)
