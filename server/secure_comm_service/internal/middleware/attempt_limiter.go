@@ -37,8 +37,8 @@ func RegistrationAttemptLimiter() gin.HandlerFunc {
 		c.Next()
 
 		// после обработки запроса проверяем, был ли неудачный запрос
-		// в хендлере на регистрацию при ошибке ставится в контекст "failed_registration" = true
-		if failed, exists := c.Get("failed_registration"); exists && failed.(bool) {
+		// в хендлере на регистрацию при ошибке ставится в контекст "failed_handshake" = true
+		if failed, exists := c.Get("failed_handshake"); exists && failed.(bool) {
 			mu.Lock()
 			defer mu.Unlock()
 

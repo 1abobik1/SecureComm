@@ -7,7 +7,7 @@ import string
 import tempfile
 import time
 import argparse
-from client_http import perform_handshake, perform_finalize, derive_keys, stream_upload_encrypted_file
+from ..client_http import perform_handshake, perform_finalize, derive_keys, stream_upload_encrypted_file
 
 class ServerTester:
     def __init__(self, auth_host="http://localhost:8081", crypto_host="http://localhost:8080"):
